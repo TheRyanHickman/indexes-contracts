@@ -6,7 +6,6 @@ import "hardhat/console.sol";
 struct Shareholder {
     uint64 shares;
     address wallet;
-    bool exist;
 }
 
 struct Proposal {
@@ -14,7 +13,6 @@ struct Proposal {
     Shareholder[] newShareholders;
     address[] voters;
     uint256 date;
-    bool exist;
 }
 
 contract TokenSharing {
@@ -59,6 +57,7 @@ contract TokenSharing {
             uint256 votedShares = _shareholdersMap[voter];
             favorableShares += votedShares;
         }
+        // TODO: check totalshares set
         return
             ((favorableShares * 1000) / (_totalShares * 1000)) >
             FAVORABLE_VOTE_THRESHOLD;
@@ -70,7 +69,7 @@ contract TokenSharing {
             "You are not allowed apply the proposal."
         );
         Proposal storage proposal = _proposals[proposalId];
-        require(proposal.exist, "Unknow proposal id.");
+        require(proposal.author != address(0), "Unknow proposal id.");
         require(
             proposal.date > _proposalDate,
             "Too old proposal a newer is already applied."
@@ -93,7 +92,6 @@ contract TokenSharing {
         _proposals.push();
         uint256 proposalIndex = _proposals.length - 1;
         Proposal storage proposal = _proposals[proposalIndex];
-        proposal.exist = true;
         proposal.author = msg.sender;
         proposal.voters = new address[](0);
         proposal.date = block.timestamp;
@@ -109,7 +107,7 @@ contract TokenSharing {
             "You are not allowed to vote."
         );
         Proposal storage proposal = _proposals[proposalId];
-        require(proposal.exist, "Unknow proposal id.");
+        require(proposal.author != address(0), "Unknow proposal id.");
         for (uint256 i = 0; i < proposal.voters.length; i++) {
             require(proposal.voters[i] != msg.sender, "You already voted");
         }
@@ -121,7 +119,7 @@ contract TokenSharing {
         returns (Proposal memory)
     {
         Proposal memory proposal = _proposals[proposalId];
-        require(proposal.exist, "Unknow proposal id.");
+        require(proposal.author != address(0), "Unknow proposal id.");
         require(
             proposal.author == msg.sender || proposal.date < _proposalDate,
             "You are not authorized to delete the proposal yet."
@@ -136,7 +134,7 @@ contract TokenSharing {
         returns (Proposal memory)
     {
         Proposal memory proposal = _proposals[proposalId];
-        require(proposal.exist, "Unknow proposal id.");
+        require(proposal.author != address(0), "Unknow proposal id.");
         return proposal;
     }
 

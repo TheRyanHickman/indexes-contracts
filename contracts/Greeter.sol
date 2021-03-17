@@ -16,9 +16,8 @@ struct Proposal {
     bool exist;
 }
 
-
 contract TokenSharing {
-    constant uint256 FAVORABLE_VOTE_THRESHOLD = 7000;
+    uint256 constant FAVORABLE_VOTE_THRESHOLD = 7000;
 
     uint256 _proposalDate;
     mapping(address => uint64) _shareholdersMap;
@@ -42,23 +41,25 @@ contract TokenSharing {
         proposalDate = proposalDate;
     }
 
-    function getTotalShares() private pure returns (uint256) {
+    function getTotalShares() private view returns (uint256) {
         uint256 totalShares = 0;
-        for (uint256 i = 0; i < _shareholders; i++) {
+        for (uint256 i = 0; i < _shareholders.length; i++) {
             totalShares += _shareholders[i].shares;
         }
         return totalShares;
     }
 
-    function isFavorable(Proposal memory proposal) private pure returns (bool) {
+    function isFavorable(Proposal memory proposal) private view returns (bool) {
         uint256 favorableShares = 0;
-        uint256 totalShares = getTotalShares();
-        for (uint256 i = 0; i < proposal.voters; i++) {
+        for (uint256 i = 0; i < proposal.voters.length; i++) {
             address voter = proposal.voters[i];
             uint256 votedShares = _shareholdersMap[voter];
-            totalShares += votedShares;
+            favorableShares += votedShares;
         }
-        return (favorable * 1000 / totalShares * 1000) >  FAVORABLE_VOTE_THRESHOLD;
+        uint256 totalShares = getTotalShares();
+        return
+            ((favorableShares * 1000) / (totalShares * 1000)) >
+            FAVORABLE_VOTE_THRESHOLD;
     }
 
     function applyProposal(uint256 proposalId) public {
@@ -72,7 +73,10 @@ contract TokenSharing {
             proposal.date > _proposalDate,
             "Too old proposal a newer is already applied."
         );
-        require(isFavorable(proposal), "The proposal has not been approved yet.");
+        require(
+            isFavorable(proposal),
+            "The proposal has not been approved yet."
+        );
         replaceShareholders(proposal.newShareholders, block.timestamp);
     }
 

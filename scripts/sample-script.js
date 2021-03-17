@@ -15,17 +15,30 @@ async function main() {
 
   // We get the contract to deploy
   const TokenSharing = await hre.ethers.getContractFactory("TokenSharing");
-
-  const sharer = await TokenSharing.deploy([]);
-
+  const myAddress = await TokenSharing.signer.getAddress();
+  const sharer = await TokenSharing.deploy(myAddress);
   await sharer.deployed();
-  const resp = await sharer.test([
+
+  await sharer.createProposal([
     {
-      wallet: "0x6DeBA0F8aB4891632fB8d381B27eceC7f7743A14",
+      wallet: sharer.address,
       shares: 12,
     },
   ]);
-  console.log(resp);
+
+  await sharer.applyProposal(0)
+
+  await sharer.createProposal([
+    {
+      wallet: sharer.address,
+      shares: 12,
+    },
+  ]);
+
+  await sharer.applyProposal(1)
+
+  const shareholders= await sharer.getShareholders();
+  console.log(shareholders)
 
   console.log("sharer deployed to:", sharer.address);
 }

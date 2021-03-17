@@ -33,7 +33,12 @@ contract TokenSharing {
         Shareholder[] memory newShareholders,
         uint256 proposalDate
     ) private {
-        delete _shareholders;
+        for (uint256 i = 0; i < _shareholders.length; i++) {
+            address wallet = _shareholders[i].wallet;
+            delete _shareholdersMap[wallet];
+            delete _shareholders[i];
+        }
+
         for (uint256 i = 0; i < newShareholders.length; i++) {
             Shareholder memory initialShareholder = newShareholders[i];
             _shareholdersMap[initialShareholder.wallet] = initialShareholder
@@ -59,9 +64,8 @@ contract TokenSharing {
             uint256 votedShares = _shareholdersMap[voter];
             favorableShares += votedShares;
         }
-        // TODO: check totalshares set
         return
-            ((favorableShares * 1000) / (_totalShares * 1000)) >
+            ((favorableShares * 10000) / (_totalShares)) >
             FAVORABLE_VOTE_THRESHOLD;
     }
 
@@ -70,7 +74,9 @@ contract TokenSharing {
             _shareholdersMap[msg.sender] != 0,
             "You are not allowed apply the proposal."
         );
+        require(proposalId < _proposals.length, "Unknow proposal id.");
         Proposal storage proposal = _proposals[proposalId];
+
         require(proposal.author != address(0), "Unknow proposal id.");
         require(
             proposal.date > _proposalDate,
@@ -89,7 +95,7 @@ contract TokenSharing {
     {
         require(
             _shareholdersMap[msg.sender] != 0,
-            "You are not allowed to vote."
+            "You are not allowed to create a proposal."
         );
         _proposals.push();
         uint256 proposalIndex = _proposals.length - 1;
@@ -98,8 +104,10 @@ contract TokenSharing {
         proposal.voters = new address[](0);
         proposal.date = block.timestamp;
         for (uint256 i = 0; i < newShareholders.length; i++) {
-            proposal.newShareholders[i] = newShareholders[i];
+            Shareholder memory newShareholder = newShareholders[i];
+            proposal.newShareholders.push(newShareholder);
         }
+        vote(proposalIndex);
         return proposalIndex;
     }
 

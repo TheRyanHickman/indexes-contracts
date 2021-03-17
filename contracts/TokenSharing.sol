@@ -23,8 +23,10 @@ contract TokenSharing {
     Shareholder[] _shareholders;
     Proposal[] _proposals;
 
-    constructor(Shareholder[] memory newShareholders) {
-        replaceShareholders(newShareholders, block.timestamp);
+    constructor(address owner) {
+        Shareholder[] memory shareholders = new Shareholder[](1);
+        shareholders[0] = Shareholder({wallet: owner, shares: 100});
+        replaceShareholders(shareholders, block.timestamp);
     }
 
     function replaceShareholders(

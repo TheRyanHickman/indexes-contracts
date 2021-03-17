@@ -1,6 +1,5 @@
 //SPDX-License-Identifier: Unlicense
-pragma experimental ABIEncoderV2;
-pragma solidity ^0.7.0;
+pragma solidity ^0.8.0;
 
 import "hardhat/console.sol";
 
@@ -13,36 +12,68 @@ struct Shareholder {
 struct Proposal {
     Shareholder[] newShareholders;
     address[] voters;
+    uint256 date;
     bool exist;
 }
 
-contract TokenSharing {
-    uint256 lastupdated;
-    mapping(address => uint64) shareholdersMap;
-    Shareholder[] shareholders;
-    Proposal[] proposals;
 
-    constructor(Shareholder[] memory initialShareOlders) {
-        replaceShareholders(initialShareOlders);
+contract TokenSharing {
+    constant uint256 FAVORABLE_VOTE_THRESHOLD = 7000;
+
+    uint256 _proposalDate;
+    mapping(address => uint64) _shareholdersMap;
+    Shareholder[] _shareholders;
+    Proposal[] _proposals;
+
+    constructor(Shareholder[] memory newShareholders) {
+        replaceShareholders(newShareholders, block.timestamp);
     }
 
-    function replaceShareholders(Shareholder[] memory newShareholders) private {
+    function replaceShareholders(
+        Shareholder[] memory newShareholders,
+        uint256 proposalDate
+    ) private {
         for (uint256 i = 0; i < newShareholders.length; i++) {
             Shareholder memory initialShareholder = newShareholders[i];
-            shareholdersMap[initialShareholder.wallet] = initialShareholder
+            _shareholdersMap[initialShareholder.wallet] = initialShareholder
                 .shares;
-            shareholders.push(initialShareholder);
+            _shareholders.push(initialShareholder);
         }
-        lastupdated = block.timestamp;
+        proposalDate = proposalDate;
+    }
+
+    function getTotalShares() private pure returns (uint256) {
+        uint256 totalShares = 0;
+        for (uint256 i = 0; i < _shareholders; i++) {
+            totalShares += _shareholders[i].shares;
+        }
+        return totalShares;
+    }
+
+    function isFavorable(Proposal memory proposal) private pure returns (bool) {
+        uint256 favorableShares = 0;
+        uint256 totalShares = getTotalShares();
+        for (uint256 i = 0; i < proposal.voters; i++) {
+            address voter = proposal.voters[i];
+            uint256 votedShares = _shareholdersMap[voter];
+            totalShares += votedShares;
+        }
+        return (favorable * 1000 / totalShares * 1000) >  FAVORABLE_VOTE_THRESHOLD;
     }
 
     function applyProposal(uint256 proposalId) public {
         require(
-            shareholdersMap[msg.sender] != 0,
+            _shareholdersMap[msg.sender] != 0,
             "You are not allowed apply the proposal."
         );
-        Proposal storage proposal = proposals[proposalId];
+        Proposal storage proposal = _proposals[proposalId];
         require(proposal.exist, "Unknow proposal id.");
+        require(
+            proposal.date > _proposalDate,
+            "Too old proposal a newer is already applied."
+        );
+        require(isFavorable(proposal), "The proposal has not been approved yet.");
+        replaceShareholders(proposal.newShareholders, block.timestamp);
     }
 
     function createProposal(Shareholder[] memory newShareholders)
@@ -50,14 +81,15 @@ contract TokenSharing {
         returns (uint256)
     {
         require(
-            shareholdersMap[msg.sender] != 0,
+            _shareholdersMap[msg.sender] != 0,
             "You are not allowed to vote."
         );
-        proposals.push();
-        uint256 proposalIndex = proposals.length - 1;
-        Proposal storage proposal = proposals[proposalIndex];
+        _proposals.push();
+        uint256 proposalIndex = _proposals.length - 1;
+        Proposal storage proposal = _proposals[proposalIndex];
         proposal.exist = true;
         proposal.voters = new address[](0);
+        proposal.date = block.timestamp;
         for (uint256 i = 0; i < newShareholders.length; i++) {
             proposal.newShareholders[i] = newShareholders[i];
         }
@@ -66,10 +98,10 @@ contract TokenSharing {
 
     function vote(uint256 proposalId) public {
         require(
-            shareholdersMap[msg.sender] != 0,
+            _shareholdersMap[msg.sender] != 0,
             "You are not allowed to vote."
         );
-        Proposal storage proposal = proposals[proposalId];
+        Proposal storage proposal = _proposals[proposalId];
         require(proposal.exist, "Unknow proposal id.");
         for (uint256 i = 0; i < proposal.voters.length; i++) {
             require(proposal.voters[i] != msg.sender, "You already voted");
@@ -83,10 +115,10 @@ contract TokenSharing {
         returns (Proposal memory)
     {
         require(
-            shareholdersMap[msg.sender] != 0,
+            _shareholdersMap[msg.sender] != 0,
             "You are not allowed check the votes."
         );
-        Proposal memory proposal = proposals[proposalId];
+        Proposal memory proposal = _proposals[proposalId];
         require(proposal.exist, "Unknow proposal id.");
         return proposal;
     }

@@ -10,6 +10,7 @@ struct Shareholder {
 }
 
 struct Proposal {
+    address author;
     Shareholder[] newShareholders;
     address[] voters;
     uint256 date;
@@ -18,8 +19,8 @@ struct Proposal {
 
 contract TokenSharing {
     uint256 constant FAVORABLE_VOTE_THRESHOLD = 7000;
-
     uint256 _proposalDate;
+    uint256 _totalShares;
     mapping(address => uint64) _shareholdersMap;
     Shareholder[] _shareholders;
     Proposal[] _proposals;
@@ -32,16 +33,18 @@ contract TokenSharing {
         Shareholder[] memory newShareholders,
         uint256 proposalDate
     ) private {
+        delete _shareholders;
         for (uint256 i = 0; i < newShareholders.length; i++) {
             Shareholder memory initialShareholder = newShareholders[i];
             _shareholdersMap[initialShareholder.wallet] = initialShareholder
                 .shares;
             _shareholders.push(initialShareholder);
         }
+        _totalShares = calculateTotalShares();
         proposalDate = proposalDate;
     }
 
-    function getTotalShares() private view returns (uint256) {
+    function calculateTotalShares() private view returns (uint256) {
         uint256 totalShares = 0;
         for (uint256 i = 0; i < _shareholders.length; i++) {
             totalShares += _shareholders[i].shares;
@@ -56,9 +59,8 @@ contract TokenSharing {
             uint256 votedShares = _shareholdersMap[voter];
             favorableShares += votedShares;
         }
-        uint256 totalShares = getTotalShares();
         return
-            ((favorableShares * 1000) / (totalShares * 1000)) >
+            ((favorableShares * 1000) / (_totalShares * 1000)) >
             FAVORABLE_VOTE_THRESHOLD;
     }
 
@@ -92,6 +94,7 @@ contract TokenSharing {
         uint256 proposalIndex = _proposals.length - 1;
         Proposal storage proposal = _proposals[proposalIndex];
         proposal.exist = true;
+        proposal.author = msg.sender;
         proposal.voters = new address[](0);
         proposal.date = block.timestamp;
         for (uint256 i = 0; i < newShareholders.length; i++) {
@@ -113,17 +116,31 @@ contract TokenSharing {
         proposal.voters.push(msg.sender);
     }
 
+    function deleteProposal(uint256 proposalId)
+        public
+        returns (Proposal memory)
+    {
+        Proposal memory proposal = _proposals[proposalId];
+        require(proposal.exist, "Unknow proposal id.");
+        require(
+            proposal.author == msg.sender || proposal.date < _proposalDate,
+            "You are not authorized to delete the proposal yet."
+        );
+        delete _proposals[proposalId];
+        return proposal;
+    }
+
     function getProposal(uint256 proposalId)
         public
         view
         returns (Proposal memory)
     {
-        require(
-            _shareholdersMap[msg.sender] != 0,
-            "You are not allowed check the votes."
-        );
         Proposal memory proposal = _proposals[proposalId];
         require(proposal.exist, "Unknow proposal id.");
         return proposal;
+    }
+
+    function getShareholders() public view returns (Shareholder[] memory) {
+        return _shareholders;
     }
 }

@@ -2,6 +2,7 @@
 pragma solidity ^0.8.0;
 
 import "hardhat/console.sol";
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 struct Shareholder {
     uint64 shares;
@@ -16,6 +17,10 @@ struct Proposal {
 }
 
 contract TokenSharing {
+    ERC20 _token;
+    event NewProposal(Proposal);
+    event Transfer(Shareholder, uint256);
+    uint256 constant MINIMUM_DISTRIBUTE = 1e18;
     uint256 constant FAVORABLE_VOTE_THRESHOLD = 7000;
     uint256 _proposalDate;
     uint256 _totalShares;
@@ -23,10 +28,53 @@ contract TokenSharing {
     Shareholder[] _shareholders;
     Proposal[] _proposals;
 
-    constructor(address owner) {
+    constructor(address owner, address tokenAddress) {
+        _token = ERC20(tokenAddress);
         Shareholder[] memory shareholders = new Shareholder[](1);
         shareholders[0] = Shareholder({wallet: owner, shares: 100});
         replaceShareholders(shareholders, block.timestamp);
+    }
+
+    modifier shareholderOnly() {
+        require(
+            _shareholdersMap[msg.sender] != 0,
+            "Unauthorized. You have to be a shareholder."
+        );
+        _;
+    }
+
+    modifier validShareholders(Shareholder[] memory shareholders) {
+        require(
+            shareholders.length > 0,
+            "At least 1 shareholder is requiered."
+        );
+        for (uint256 i = 0; i < shareholders.length; i++) {
+            Shareholder memory shareholder = shareholders[i];
+            require(
+                shareholder.wallet != address(0),
+                "Wallet address 0 is not allowed for a shareholder."
+            );
+        }
+        _;
+    }
+
+    function distributeShares() public {
+        uint256 balance = _token.balanceOf(address(this));
+        require(
+            balance > MINIMUM_DISTRIBUTE,
+            "Not enought of token to distribute."
+        );
+        for (uint256 i = 0; i < _shareholders.length; i++) {
+            Shareholder memory shareholder = _shareholders[i];
+            uint256 percentAllowed = shareholder.shares / _totalShares;
+            uint256 amontToTransfer = balance * percentAllowed;
+            _token.transferFrom(
+                address(this),
+                shareholder.wallet,
+                amontToTransfer
+            );
+            emit Transfer(shareholder, amontToTransfer);
+        }
     }
 
     function replaceShareholders(
@@ -69,11 +117,7 @@ contract TokenSharing {
             FAVORABLE_VOTE_THRESHOLD;
     }
 
-    function applyProposal(uint256 proposalId) public {
-        require(
-            _shareholdersMap[msg.sender] != 0,
-            "You are not allowed apply the proposal."
-        );
+    function applyProposal(uint256 proposalId) public shareholderOnly {
         require(proposalId < _proposals.length, "Unknow proposal id.");
         Proposal storage proposal = _proposals[proposalId];
 
@@ -91,12 +135,10 @@ contract TokenSharing {
 
     function createProposal(Shareholder[] memory newShareholders)
         public
+        shareholderOnly
+        validShareholders(newShareholders)
         returns (uint256)
     {
-        require(
-            _shareholdersMap[msg.sender] != 0,
-            "You are not allowed to create a proposal."
-        );
         _proposals.push();
         uint256 proposalIndex = _proposals.length - 1;
         Proposal storage proposal = _proposals[proposalIndex];
@@ -107,15 +149,12 @@ contract TokenSharing {
             Shareholder memory newShareholder = newShareholders[i];
             proposal.newShareholders.push(newShareholder);
         }
-        vote(proposalIndex);
+        approveProposal(proposalIndex);
+        emit NewProposal(proposal);
         return proposalIndex;
     }
 
-    function vote(uint256 proposalId) public {
-        require(
-            _shareholdersMap[msg.sender] != 0,
-            "You are not allowed to vote."
-        );
+    function approveProposal(uint256 proposalId) public shareholderOnly {
         Proposal storage proposal = _proposals[proposalId];
         require(proposal.author != address(0), "Unknow proposal id.");
         for (uint256 i = 0; i < proposal.voters.length; i++) {

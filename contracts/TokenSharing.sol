@@ -4,40 +4,34 @@ pragma solidity ^0.8.0;
 import "hardhat/console.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
-struct Shareholder {
-    uint64 shares;
-    address wallet;
-}
-
-struct Proposal {
-    address author;
-    Shareholder[] newShareholders;
-    address[] voters;
-    uint256 date;
-}
-
 contract TokenSharing {
-    ERC20 _token;
+    uint256 constant FAVORABLE_VOTE_THRESHOLD = 7000;
     event NewProposal(Proposal);
     event Transfer(Shareholder, uint256);
-    uint256 constant MINIMUM_DISTRIBUTE = 1e18;
-    uint256 constant FAVORABLE_VOTE_THRESHOLD = 7000;
+    ERC20[] _tokens;
     uint256 _proposalDate;
     uint256 _totalShares;
-    mapping(address => uint64) _shareholdersMap;
+    uint256 _totalVotingShares;
+    mapping(address => Shareholder) _shareholdersMap;
     Shareholder[] _shareholders;
     Proposal[] _proposals;
 
-    constructor(address owner, address tokenAddress) {
-        _token = ERC20(tokenAddress);
+    constructor(address owner, address[] memory tokenAddresses) {
+        for (uint256 i = 0; i < tokenAddresses.length; i++) {
+            _tokens.push(ERC20(tokenAddresses[i]));
+        }
         Shareholder[] memory shareholders = new Shareholder[](1);
-        shareholders[0] = Shareholder({wallet: owner, shares: 100});
+        shareholders[0] = Shareholder({
+            wallet: owner,
+            shares: 100,
+            canVote: true
+        });
         replaceShareholders(shareholders, block.timestamp);
     }
 
-    modifier shareholderOnly() {
+    modifier voterOnly() {
         require(
-            _shareholdersMap[msg.sender] != 0,
+            _shareholdersMap[msg.sender].canVote,
             "Unauthorized. You have to be a shareholder."
         );
         _;
@@ -51,6 +45,10 @@ contract TokenSharing {
         for (uint256 i = 0; i < shareholders.length; i++) {
             Shareholder memory shareholder = shareholders[i];
             require(
+                shareholder.shares > 0,
+                "Shareholder must have at least 1 share."
+            );
+            require(
                 shareholder.wallet != address(0),
                 "Wallet address 0 is not allowed for a shareholder."
             );
@@ -58,17 +56,19 @@ contract TokenSharing {
         _;
     }
 
-    function distributeShares() public {
-        uint256 balance = _token.balanceOf(address(this));
-        require(
-            balance > MINIMUM_DISTRIBUTE,
-            "Not enought of token to distribute."
-        );
+    function distributeAllTokens() public {
+        for (uint256 i = 0; i < _tokens.length; i++) {
+            distributeToken(_tokens[i]);
+        }
+    }
+
+    function distributeToken(ERC20 token) public {
+        uint256 balance = token.balanceOf(address(this));
         for (uint256 i = 0; i < _shareholders.length; i++) {
             Shareholder memory shareholder = _shareholders[i];
             uint256 percentAllowed = shareholder.shares / _totalShares;
             uint256 amontToTransfer = balance * percentAllowed;
-            _token.transferFrom(
+            token.transferFrom(
                 address(this),
                 shareholder.wallet,
                 amontToTransfer
@@ -89,18 +89,34 @@ contract TokenSharing {
 
         for (uint256 i = 0; i < newShareholders.length; i++) {
             Shareholder memory initialShareholder = newShareholders[i];
-            _shareholdersMap[initialShareholder.wallet] = initialShareholder
-                .shares;
+            _shareholdersMap[initialShareholder.wallet] = initialShareholder;
             _shareholders.push(initialShareholder);
         }
-        _totalShares = calculateTotalShares();
+        _totalShares = calculateTotalShares(newShareholders);
+        _totalVotingShares = calculateTotalVotingShares(newShareholders);
         proposalDate = proposalDate;
     }
 
-    function calculateTotalShares() private view returns (uint256) {
+    function calculateTotalShares(Shareholder[] memory shareholders)
+        private
+        pure
+        returns (uint256)
+    {
         uint256 totalShares = 0;
-        for (uint256 i = 0; i < _shareholders.length; i++) {
-            totalShares += _shareholders[i].shares;
+        for (uint256 i = 0; i < shareholders.length; i++) {
+            totalShares += shareholders[i].shares;
+        }
+        return totalShares;
+    }
+
+    function calculateTotalVotingShares(Shareholder[] memory shareholders)
+        private
+        pure
+        returns (uint256)
+    {
+        uint256 totalShares = 0;
+        for (uint256 i = 0; i < shareholders.length; i++) {
+            if (shareholders[i].canVote) totalShares += shareholders[i].shares;
         }
         return totalShares;
     }
@@ -109,7 +125,7 @@ contract TokenSharing {
         uint256 favorableShares = 0;
         for (uint256 i = 0; i < proposal.voters.length; i++) {
             address voter = proposal.voters[i];
-            uint256 votedShares = _shareholdersMap[voter];
+            uint256 votedShares = _shareholdersMap[voter].shares;
             favorableShares += votedShares;
         }
         return
@@ -117,10 +133,9 @@ contract TokenSharing {
             FAVORABLE_VOTE_THRESHOLD;
     }
 
-    function applyProposal(uint256 proposalId) public shareholderOnly {
+    function applyProposal(uint256 proposalId) public voterOnly {
         require(proposalId < _proposals.length, "Unknow proposal id.");
         Proposal storage proposal = _proposals[proposalId];
-
         require(proposal.author != address(0), "Unknow proposal id.");
         require(
             proposal.date > _proposalDate,
@@ -135,7 +150,7 @@ contract TokenSharing {
 
     function createProposal(Shareholder[] memory newShareholders)
         public
-        shareholderOnly
+        voterOnly
         validShareholders(newShareholders)
         returns (uint256)
     {
@@ -154,7 +169,7 @@ contract TokenSharing {
         return proposalIndex;
     }
 
-    function approveProposal(uint256 proposalId) public shareholderOnly {
+    function approveProposal(uint256 proposalId) public voterOnly {
         Proposal storage proposal = _proposals[proposalId];
         require(proposal.author != address(0), "Unknow proposal id.");
         for (uint256 i = 0; i < proposal.voters.length; i++) {
@@ -190,4 +205,17 @@ contract TokenSharing {
     function getShareholders() public view returns (Shareholder[] memory) {
         return _shareholders;
     }
+}
+
+struct Shareholder {
+    uint64 shares;
+    address wallet;
+    bool canVote;
+}
+
+struct Proposal {
+    address author;
+    Shareholder[] newShareholders;
+    address[] voters;
+    uint256 date;
 }

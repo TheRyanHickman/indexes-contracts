@@ -5,6 +5,10 @@
 // Runtime Environment's members available in the global scope.
 const hre = require("hardhat");
 
+function getEvents(receipt, eventType) {
+  return receipt.events?.filter((x) => x.event == eventType);
+}
+
 async function main() {
   // Hardhat always runs the compile task when running scripts with its command
   // line interface.
@@ -14,31 +18,14 @@ async function main() {
   // await hre.run('compile');
 
   // We get the contract to deploy
-  const TokenSharing = await hre.ethers.getContractFactory("TokenSharing");
+  const TokenSharing = await hre.ethers.getContractFactory("DeployLevyathan");
   const myAddress = await TokenSharing.signer.getAddress();
-  const sharer = await TokenSharing.deploy(myAddress);
+  const sharer = await TokenSharing.deploy();
   await sharer.deployed();
+  console.log(await sharer.test());
+ 
 
-  await sharer.createProposal([
-    {
-      wallet: sharer.address,
-      shares: 12,
-    },
-  ]);
 
-  await sharer.applyProposal(0)
-
-  await sharer.createProposal([
-    {
-      wallet: sharer.address,
-      shares: 12,
-    },
-  ]);
-
-  await sharer.applyProposal(1)
-
-  const shareholders= await sharer.getShareholders();
-  console.log(shareholders)
 
   console.log("sharer deployed to:", sharer.address);
 }

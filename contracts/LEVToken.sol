@@ -3,14 +3,15 @@ pragma solidity ^0.8.0;
 import "hardhat/console.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@uniswap/v2-core/contracts/interfaces/IUniswapV2Pair.sol";
-import "contracts/IERC20Burnable.sol";
+import "contracts/IBurnable.sol";
 import "contracts/UniswapLibrary.sol";
+import "contracts/SLEVToken.sol";
 
-contract LevToken is ERC20, IERC20Burnable {
+contract LEVToken is ERC20, IBurnable {
     uint256 _initialSupply;
     uint256 _mintPerBlock;
     IUniswapV2Pair _LevSlevLP;
-    IERC20Burnable _SLev;
+    SLEVToken _SLev;
 
     constructor(
         address owner,
@@ -22,7 +23,7 @@ contract LevToken is ERC20, IERC20Burnable {
         _mint(owner, initialSupply);
         _mintPerBlock = mintPerBlock;
         _LevSlevLP = IUniswapV2Pair(levSlevLP);
-        _SLev = IERC20Burnable(SLev);
+        _SLev = SLEVToken(SLev);
     }
 
     function updateTotalSupply() public {

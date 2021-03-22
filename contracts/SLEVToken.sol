@@ -2,23 +2,26 @@ pragma solidity ^0.8.0;
 
 import "hardhat/console.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import "contracts/IERC20Mintable.sol";
-import "contracts/IERC20Burnable.sol";
+import "contracts/IMintable.sol";
+import "contracts/IBurnable.sol";
+import "contracts/LEVStackingPool.sol";
 
-contract SLevToken is ERC20, IERC20Mintable, IERC20Burnable {
+contract SLEVToken is ERC20, IMintable, IBurnable {
     uint256 _initialSupply;
+    LEVStackingPool[] _stackingPools;
     mapping(address => bool) _minters;
 
-    constructor(
-        address owner,
-        uint256 initialSupply,
-        address[] memory minters
-    ) ERC20("Stacked LEV", "SLEV") {
+    constructor(address owner, uint256 initialSupply)
+        ERC20("Stacked LEV", "SLEV")
+    {
         _initialSupply = initialSupply;
         _mint(owner, initialSupply);
-        for (uint256 i = 0; i < minters.length; i++)
-            _minters[minters[i]] = true;
     }
+
+    //     address SLEV,
+    // address[] memory rewardTokens,
+    // uint256[] memory SLEVPerBlock,
+    // address[] memory lp
 
     modifier mintersOnly {
         require(_minters[msg.sender], "Only allowed minters.");

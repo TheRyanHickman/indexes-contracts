@@ -2,35 +2,37 @@ pragma solidity ^0.8.0;
 
 import "hardhat/console.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import "@uniswap/v2-core/contracts/interfaces/IUniswapV2ERC20.sol";
-import "contracts/IERC20Mintable.sol";
+import "@uniswap/v2-core/contracts/interfaces/IUniswapV2Pair.sol";
+import "contracts/SLEVToken.sol";
+import "contracts/LEVToken.sol";
+import "contracts/UniswapLibrary.sol";
 
-contract Stacking {
+contract LEVStackingPool {
     uint256 _totalStacked;
-    ERC20 _stakeToken;
+    SLEVToken _SLEV;
     RewardTokenInfo[] _rewardTokens;
     mapping(address => Stacker) _stackers;
     mapping(address => RewardTokenInfo) _rewardTokenMap;
 
     constructor(
-        address stakeToken,
+        address SLEV,
         address[] memory rewardTokens,
-        uint256[] memory rewardsPerBlock,
-        address[] memory lpTrade
+        uint256[] memory SLEVPerBlock,
+        address[] memory lp
     ) {
-        _stakeToken = ERC20(stakeToken);
         require(
-            rewardTokens.length == rewardsPerBlock.length,
+            rewardTokens.length == SLEVPerBlock.length,
             "reaward tokens and reward per block arrays must have the same size."
         );
+        _SLEV = SLEVToken(SLEV);
         for (uint256 i = 0; i < rewardTokens.length; i++) {
             address rewardTokenAddress = rewardTokens[i];
-            IERC20Mintable rewardToken = IERC20Mintable(rewardTokenAddress);
+            ERC20 rewardToken = ERC20(rewardTokenAddress);
             _rewardTokens.push(
                 RewardTokenInfo({
-                    token: rewardToken,
-                    lpTrade: IUniswapV2ERC20(lpTrade[i]),
-                    rewardPerBlock: rewardsPerBlock[i],
+                    rewardToken: rewardToken,
+                    lp: IUniswapV2Pair(lp[i]),
+                    SLEVPerBlock: SLEVPerBlock[i],
                     index: i
                 })
             );
@@ -61,9 +63,9 @@ contract Stacking {
     {
         uint256[] memory rewards = new uint256[](_rewardTokens.length);
         for (uint256 i = 0; i < _rewardTokens.length; i++) {
-            uint256 rewardPerBlock = _rewardTokens[i].rewardPerBlock;
+            uint256 SLEVPerBlock = _rewardTokens[i].SLEVPerBlock;
             uint256 blockRewards =
-                (blockNumber - stacker.lastUpdateBlock) * rewardPerBlock;
+                (blockNumber - stacker.lastUpdateBlock) * SLEVPerBlock;
             rewards[i] = blockRewards * stacker.stackedAmount;
         }
         return rewards;
@@ -107,9 +109,8 @@ contract Stacking {
     }
 
     function collectAllRewards() public stackerOnly {
-        Stacker storage stacker = _stackers[msg.sender];
         for (uint256 i = 0; i < _rewardTokens.length; i++) {
-            address rewardTokenAddress = address(_rewardTokens[i].token);
+            address rewardTokenAddress = address(_rewardTokens[i].rewardToken);
             collectReward(rewardTokenAddress);
         }
     }
@@ -119,9 +120,15 @@ contract Stacking {
         updateRewards(stacker, block.number);
         RewardTokenInfo memory rewardTokenInfo =
             _rewardTokenMap[rewardTokenAddress];
-        uint256 rewardAmount = stacker.rewards[rewardTokenInfo.index];
-        rewardTokenInfo.token.mint(stacker.wallet, rewardAmount);
+        uint256 SLEVAmount = stacker.rewards[rewardTokenInfo.index];
         stacker.rewards[rewardTokenInfo.index] = 0;
+        _SLEV.mint(stacker.wallet, SLEVAmount);
+        UniSwapLibrary.sellToken(
+            address(rewardTokenInfo.rewardToken),
+            stacker.wallet,
+            SLEVAmount,
+            rewardTokenInfo.lp
+        );
     }
 
     function initializeStacker(
@@ -147,8 +154,9 @@ contract Stacking {
         RewardToken[] memory rewardsToken =
             new RewardToken[](_rewardTokens.length);
         for (uint256 i = 0; i < _rewardTokens.length; i++) {
-            rewardsToken[i].amount = rewards[i];
-            rewardsToken[i].token = address(_rewardTokens[i].token);
+            RewardTokenInfo memory rewardTokenInfo = _rewardTokens[i];
+            rewardsToken[i].amount = rewards[i] * 0; // find price with lp rewardTokenInfo.lp
+            rewardsToken[i].token = address(rewardTokenInfo.rewardToken);
         }
         return rewardsToken;
     }
@@ -163,10 +171,10 @@ contract Stacking {
 }
 
 struct RewardTokenInfo {
-    IERC20Mintable token;
-    IUniswapV2ERC20 lpTrade;
+    ERC20 rewardToken;
+    IUniswapV2Pair lp;
     uint256 index;
-    uint256 rewardPerBlock;
+    uint256 SLEVPerBlock;
 }
 
 struct Stacker {

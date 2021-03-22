@@ -3,9 +3,9 @@ pragma solidity ^0.8.0;
 import "hardhat/console.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@uniswap/v2-core/contracts/interfaces/IUniswapV2Pair.sol";
-import "contracts/SLEVToken.sol";
-import "contracts/LEVToken.sol";
-import "contracts/UniswapLibrary.sol";
+import "contracts/tokens/SLEVToken.sol";
+import "contracts/tokens/LEVToken.sol";
+import "contracts/utilities/PancakeswapUtilities.sol";
 
 contract LEVStackingPool {
     uint256 _totalStacked;
@@ -123,7 +123,7 @@ contract LEVStackingPool {
         uint256 SLEVAmount = stacker.rewards[rewardTokenInfo.index];
         stacker.rewards[rewardTokenInfo.index] = 0;
         _SLEV.mint(stacker.wallet, SLEVAmount);
-        UniSwapLibrary.sellToken(
+        PancakeswapUtilities.sellToken(
             address(rewardTokenInfo.rewardToken),
             stacker.wallet,
             SLEVAmount,

@@ -3,9 +3,9 @@ pragma solidity ^0.8.0;
 import "hardhat/console.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@uniswap/v2-core/contracts/interfaces/IUniswapV2Pair.sol";
-import "contracts/IBurnable.sol";
-import "contracts/UniswapLibrary.sol";
-import "contracts/SLEVToken.sol";
+import "contracts/interfaces/IBurnable.sol";
+import "contracts/utilities/PancakeswapUtilities.sol";
+import "contracts/tokens/SLEVToken.sol";
 
 contract LEVToken is ERC20, IBurnable {
     uint256 _createdAtBlock;
@@ -37,7 +37,7 @@ contract LEVToken is ERC20, IBurnable {
 
     function buySLEV() public {
         address thisAddress = address(this);
-        UniSwapLibrary.sellToken(
+        PancakeswapUtilities.sellToken(
             thisAddress,
             thisAddress,
             balanceOf(thisAddress),

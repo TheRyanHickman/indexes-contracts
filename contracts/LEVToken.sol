@@ -8,6 +8,7 @@ import "contracts/UniswapLibrary.sol";
 import "contracts/SLEVToken.sol";
 
 contract LEVToken is ERC20, IBurnable {
+    uint256 _createdAtBlock;
     uint256 _initialSupply;
     uint256 _mintPerBlock;
     IUniswapV2Pair _LevSlevLP;
@@ -24,11 +25,12 @@ contract LEVToken is ERC20, IBurnable {
         _mintPerBlock = mintPerBlock;
         _LevSlevLP = IUniswapV2Pair(levSlevLP);
         _SLev = SLEVToken(SLev);
+        _createdAtBlock = block.number;
     }
 
     function updateTotalSupply() public {
         uint256 expectedTotalSupply =
-            _mintPerBlock * block.number + _initialSupply;
+            _mintPerBlock * (block.number - _createdAtBlock) + _initialSupply;
         uint256 missingQuantity = expectedTotalSupply - totalSupply();
         _mint(address(this), missingQuantity);
     }

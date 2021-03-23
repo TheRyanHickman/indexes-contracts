@@ -20,6 +20,10 @@ contract IndexPool is ERC20 {
   uint256[] _targetWeights;
   uint8[] _categories;
 
+
+  event Mint(address indexed to, uint amount, uint cost);
+  event Burn(address indexed from, uint amount, uint paid);
+
   constructor(
     string memory name,
     string memory symbol,
@@ -46,40 +50,55 @@ contract IndexPool is ERC20 {
   function mint(uint256 BUSDIn, uint256 minAmountOut) public {
     _BUSD.transferFrom(msg.sender, address(this), BUSDIn);
 
-    uint256 total = 0;
+    uint256 totalTokensBought = 0;
     uint256 totalSpent = 0;
     for (uint i = 0; i < _underlyingTokens.length; i++) {
-      (uint256 boughtAmount, uint256 spent) = _buyToken(_underlyingTokens[i], minAmountOut * _targetWeights[i]);
-      total += boughtAmount;
+      (uint256 boughtAmount, uint256 spent) = PancakeswapUtilities.buyToken(
+        address(_BUSD),
+        _underlyingTokens[i],
+        address(this),
+        minAmountOut * _targetWeights[i],
+        _pancakeRouter);
+
+      totalTokensBought += boughtAmount;
       totalSpent += spent;
     }
 
-    uint256 amountOut = total / _sum(_targetWeights);
-    require(minAmountOut >= amountOut, "Min amount out is higher than actual amount bought");
-    _mint(msg.sender, amountOut);
+    uint256 amountOut = totalTokensBought / _sum(_targetWeights);
     totalSpent += _collectFee(totalSpent);
+
     // refund the extra BUSD
     _BUSD.transfer(msg.sender, BUSDIn - totalSpent);
-    // TODO: send event maybe?
+
+    _mint(msg.sender, amountOut);
+    emit Mint(msg.sender, amountOut, totalSpent);
   }
 
   function burn(uint256 amount) public {
     require(amount <= balanceOf(msg.sender), "Insufficient balance");
 
-    uint256 totalTokenSold = 0;
-    uint256 userIncome = 0;
+    uint256 totalTokensSold = 0;
+    uint256 amountToPayUser = 0;
 
     for (uint i = 0; i < _underlyingTokens.length; i++) {
       uint256 sellAmount = (amount * _targetWeights[i]);
-      (uint256 amountOut, uint256 amountIn) = _sellToken(_underlyingTokens[i], sellAmount);
-      totalTokenSold += amountIn;
-      userIncome += amountOut;
+      (uint256 amountOut, uint256 amountIn) = PancakeswapUtilities.sellToken(
+        _underlyingTokens[i],
+        address(_BUSD),
+        address(this),
+        sellAmount,
+        _pancakeRouter
+      );
+
+      totalTokensSold += amountIn;
+      amountToPayUser += amountOut;
     }
-    uint256 totalAmountOut = totalTokenSold / _sum(_targetWeights);
-    userIncome -= _collectFee(userIncome);
-    _BUSD.transfer(msg.sender, userIncome);
-    _burn(msg.sender, totalAmountOut);
-    // TODO: need an event maybe
+    uint256 amountToBurn = totalTokensSold / _sum(_targetWeights);
+    amountToPayUser -= _collectFee(amountToPayUser);
+    _BUSD.transfer(msg.sender, amountToPayUser);
+
+    _burn(msg.sender, amountToBurn);
+    emit Burn(msg.sender, amountToBurn, amountToPayUser);
   }
 
   function getPoolPriceBUSD() public view returns (uint256) {
@@ -90,31 +109,12 @@ contract IndexPool is ERC20 {
     return total;
   }
 
-  // TODO: take into account swap fee
   function getTokenPriceBUSD(address token) public view returns (uint256) {
     address pairBUSDAddr = _pancakeFactory.getPair(address(_BUSD), token);
     require(pairBUSDAddr != address(0), "Cannot find pair BUSD-token");
     IUniswapV2Pair pairBUSD = IUniswapV2Pair(pairBUSDAddr);
-    (uint256 reserveBUSD, uint256 reserveToken,) = pairBUSD.getReserves();
+    (uint reserveBUSD, uint reserveToken) = PancakeswapUtilities.getReservesOrdered(pairBUSD, address(_BUSD), token);
     return _pancakeRouter.quote(1e18, reserveToken, reserveBUSD);
-  }
-
-  function _buyToken(address token, uint256 amountOut) private returns(uint256, uint256) {
-    IUniswapV2Pair pair = _getPairForToken(token);
-    (uint reservesA, uint reservesB, ) = pair.getReserves();
-    uint amountIn = _pancakeRouter.getAmountIn(amountOut, reservesA, reservesB);
-    _BUSD.transfer(address(pair), amountIn);
-    pair.swap(0, amountOut, address(this), "");
-    return (amountOut, amountIn);
-  }
-
-  function _sellToken(address token, uint256 amountIn) private returns(uint256, uint256) {
-    IUniswapV2Pair pair = _getPairForToken(token);
-    (uint reservesA, uint reservesB, ) = pair.getReserves();
-    uint amountOut = _pancakeRouter.getAmountOut(amountIn, reservesB, reservesA);
-    ERC20(token).transfer(address(pair), amountIn);
-    pair.swap(amountOut, 0, address(this), "");
-    return (amountOut, amountIn);
   }
 
   function _sum(uint256[] memory items) private pure returns (uint256) {
@@ -123,11 +123,6 @@ contract IndexPool is ERC20 {
       total += items[i];
     }
     return total;
-  }
-
-  // finds and returns the pair BSUD-[token]
-  function _getPairForToken(address token) private view returns(IUniswapV2Pair) {
-    return IUniswapV2Pair(PancakeswapUtilities.pairFor(address(_pancakeFactory), address(_BUSD), token));
   }
 
   function _collectFee(uint256 amount) private returns(uint256) {

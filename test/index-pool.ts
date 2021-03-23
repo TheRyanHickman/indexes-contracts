@@ -15,12 +15,16 @@ import { expect } from "chai";
 
 describe("Index Pool", function () {
   let owner: SignerWithAddress, devTeam: SignerWithAddress;
-  let mockBUSD: Contract, mockWETH: Contract, mockBTC: Contract;
-  let pairs: Record<string, Contract>, router: Contract;
+  let mockBUSD: Contract,
+    mockWETH: Contract,
+    mockBTC: Contract,
+    pancakeswapUtilities: Contract;
+  let pairs: Record<string, Contract>, pancakeRouter: Contract;
   let pancakeFactory: Contract;
 
   before(async () => {
     [owner, devTeam] = await ethers.getSigners();
+    pancakeswapUtilities = await deployPancakeUtilities();
     mockBUSD = await deployMockToken("Test BUSD", "TBUSD", owner.address);
     mockWETH = await deployMockToken("Test WETH", "TWETH", owner.address);
     mockBTC = await deployMockToken("Test BTC", "TBTC", owner.address);
@@ -40,39 +44,46 @@ describe("Index Pool", function () {
       }
     );
     pairs = exchange.pairs;
-    router = exchange.router;
+    pancakeRouter = exchange.pancakeRouter;
     pancakeFactory = exchange.pancakeFactory;
   });
 
   it("Checks pairs are showing good prices", async () => {
     const reserves = await pairs.BTC.getReserves();
-    const quote = await router.quote(
-      expandTo18Decimals(100000),
-      reserves[0],
-      reserves[1]
+    const USDIndex = (await pairs.BTC.token0()) === mockBTC.address ? 1 : 0;
+    const BTCIndex = (USDIndex + 1) % 2;
+    const quote = await pancakeRouter.quote(
+      expandTo18Decimals(1000000),
+      reserves[USDIndex],
+      reserves[BTCIndex]
     );
-    expect(quote).to.equal(expandTo18Decimals(2)); // $1M should get you 2BTC
+    expect(quote).to.equal(expandTo18Decimals(20)); // $1M should get you 20BTC
   });
 
   it("Swaps BTC for BUSD", async () => {
-    const reserves = await pairs.BTC.getReserves();
-    const amountIn = await router.getAmountIn(
+    const path = [mockBTC.address, mockBUSD.address];
+    const amountsOut = await pancakeRouter.getAmountsOut(
       expandTo18Decimals(50000),
-      reserves[1],
-      reserves[0]
+      path
     );
-    await mockBTC.transfer(pairs.BTC.address, amountIn);
+    await mockBTC.approve(pancakeRouter.address, expandTo18Decimals(1));
 
-    // selling almost 1BTC for 50000USD
-    await pairs.BTC.swap(expandTo18Decimals(50000), 0, owner.address, []);
+    // selling 1BTC
+    await pancakeRouter.swapExactTokensForTokens(
+      expandTo18Decimals(1),
+      0,
+      path,
+      owner.address,
+      Date.now() + 1000
+    );
     const newBalance: BigNumber = await mockBUSD.balanceOf(owner.address);
-    expect(newBalance).to.equal(BigNumber.from("80050000000000000000000000"));
+    expect(newBalance).to.equal(BigNumber.from("80049602730389010781255441"));
   });
 
   it("Should buy an index", async () => {
     const pool = await deployMockIndexPool("TNDX");
     const price = await pool.getPoolPriceBUSD();
-    const willingToPay = price.add(expandTo18Decimals(2000));
+    const willingToPay = price.add(expandTo18Decimals(40000));
     await mockBUSD.approve(pool.address, willingToPay);
     await pool.mint(willingToPay, expandTo18Decimals(1));
 
@@ -94,6 +105,7 @@ describe("Index Pool", function () {
     expect(ourNewBalance).to.equal(zero);
     const poolETHBalance = await mockWETH.balanceOf(pool.address);
     expect(poolETHBalance).to.equal(zero);
+    expect(await mockBTC.balanceOf(pool.address)).to.equal(zero);
   });
 
   it("Collect fees on trades", async () => {
@@ -130,19 +142,32 @@ describe("Index Pool", function () {
   });
 
   const deployMockIndexPool = async (symbol: string) => {
-    const IndexPool = await ethers.getContractFactory("IndexPool");
+    if (!pancakeswapUtilities)
+      pancakeswapUtilities = await deployPancakeUtilities();
+    const IndexPool = await ethers.getContractFactory("IndexPool", {
+      libraries: {
+        PancakeswapUtilities: pancakeswapUtilities.address,
+      },
+    });
     const pool = await IndexPool.deploy(
       "hello world pool",
       symbol,
       [mockWETH.address, mockBTC.address],
       [2, 1],
       mockBUSD.address,
-      router.address,
+      pancakeRouter.address,
       pancakeFactory.address,
       devTeam.address,
       [0]
     );
     await pool.deployed();
     return pool;
+  };
+
+  const deployPancakeUtilities = async () => {
+    const PancakeUtilities = await ethers.getContractFactory(
+      "PancakeswapUtilities"
+    );
+    return await PancakeUtilities.deploy();
   };
 });

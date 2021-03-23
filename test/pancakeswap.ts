@@ -17,6 +17,11 @@ export const deployPair = async (
 ): Promise<Contract> => {
   await pancakeFactory.createPair(tokenA.address, tokenB.address);
   const pair = await pancakeFactory.getPair(tokenA.address, tokenB.address);
+  if (tokenA.address < tokenB.address) {
+    const tempTok = tokenB;
+    tokenB = tokenA;
+    tokenA = tempTok;
+  }
   tokenA.approve(router.address, tokenAAmount);
   tokenB.approve(router.address, tokenBAmount);
   const block = await getLastBlock(router.provider);
@@ -46,7 +51,7 @@ export const deployPancakeExchange = async (
     otherthingy.bytecode
   );
   const pancakeFactory = await PancakeFactory.deploy(owner);
-  const router: Contract = await Router.deploy(
+  const pancakeRouter: Contract = await Router.deploy(
     pancakeFactory.address,
     mockWETH.address
   );
@@ -59,9 +64,9 @@ export const deployPancakeExchange = async (
       expandTo18Decimals(10000000), // $10,000,000
       tokens[token].contract,
       tokens[token].liquidity,
-      router,
+      pancakeRouter,
       owner
     );
   }
-  return { pairs, router, pancakeFactory };
+  return { pairs, pancakeRouter, pancakeFactory };
 };

@@ -15,9 +15,9 @@ contract IndexController {
     IUniswapV2Router02 private immutable _pancakeRouter;
     IndexPool[] public pools;
 
-    uint constant buybackRewardPercent = 600;
-    uint constant devTeamRewardPercent = 250;
-    uint constant stackingRewardPercent = 150;
+    uint constant buybackRewardPart = 600;
+    uint constant devTeamRewardPart = 250;
+    uint constant stackingRewardPart = 150;
     address immutable _teamSharing;
 
     event AddIndexPool(address pool, string symbol);
@@ -65,14 +65,15 @@ contract IndexController {
     */
     function redistributeFees() public {
         uint totalFees = _BUSD.balanceOf(address(this));
-        emit RedistributeFees(totalFees);
-        uint buybackPart = (totalFees * buybackRewardPercent) / 1000;
+        uint remainingToRedistribute = totalFees;
+        uint buybackPart = (remainingToRedistribute * buybackRewardPart) / 1000;
         _burnLEV(buybackPart);
-        totalFees -= buybackPart;
-        uint devTeamPart = (totalFees * devTeamRewardPercent) / 1000;
-        _BUSD.transfer(_teamSharing, devTeamPart);
-        totalFees -= devTeamPart;
-        _buyLevForSLEV(totalFees);
+        remainingToRedistribute -= buybackPart;
+        uint devTeamAmount = (remainingToRedistribute * devTeamRewardPart) / 1000;
+        _BUSD.transfer(_teamSharing, devTeamAmount);
+        remainingToRedistribute -= devTeamAmount;
+        // _buyLevForSLEV(remainingToRedistribute); @Matthieu said no
+        emit RedistributeFees(totalFees);
     }
 
     /*

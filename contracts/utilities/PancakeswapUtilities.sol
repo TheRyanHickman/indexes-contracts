@@ -71,8 +71,6 @@ library PancakeswapUtilities {
     }
   
     function sellToken(address tokenToSell, address paymentToken, address account, uint256 amountIn, IUniswapV2Router02 pancakeRouter) public returns(uint256, uint256) {
-      IUniswapV2Pair pair = _getPair(paymentToken, tokenToSell, pancakeRouter.factory());
-      (uint reservesA, uint reservesB) = getReservesOrdered(pair, paymentToken, tokenToSell);
       IBEP20(tokenToSell).approve(address(pancakeRouter), amountIn);
       address[] memory path = new address[](2);
       path[0] = tokenToSell;
@@ -88,7 +86,7 @@ library PancakeswapUtilities {
     }
 
     // finds and returns the pair BSUD-[token]
-    function _getPair(address tokenA, address tokenB, address pancakeFactory) private view returns(IUniswapV2Pair) {
+    function _getPair(address tokenA, address tokenB, address pancakeFactory) private pure returns(IUniswapV2Pair) {
       return IUniswapV2Pair(PancakeswapUtilities.pairFor(pancakeFactory, tokenA, tokenB));
     }
 

@@ -1,10 +1,11 @@
 import { BigNumber, Contract, Wallet } from "ethers";
 import { Block, Provider } from "@ethersproject/abstract-provider";
 
+import { ethers } from "hardhat";
 import { formatEther } from "ethers/lib/utils";
 import { randomBytes } from "crypto";
 
-export async function mineBlock(provider: any, timestamp: number) {
+export async function mineBlock(provider: any, timestamp?: number) {
   return provider.send("evm_mine", timestamp ? [timestamp] : []);
 }
 
@@ -29,8 +30,6 @@ export async function getWallets(ethers: any, num: number) {
 export async function getLastBlock(provider: Provider): Promise<Block> {
   return provider.getBlock(await provider.getBlockNumber());
 }
-
-export const zero = BigNumber.from(0);
 
 export const logBalanceOf = async (
   token: Contract,

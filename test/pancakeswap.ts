@@ -1,20 +1,26 @@
-import { BigNumber, Contract } from "ethers";
+import { BigNumber, Contract, Wallet } from "ethers";
 import { expandTo18Decimals, getLastBlock } from "./utils";
 
+import FactoryAbi from "../abis/UniswapV2Factory.json";
+import RouterAbi from "../abis/UniswapV2Router02.json";
+import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import { ethers } from "hardhat";
-import otherthingy from "../abis/UniswapV2Factory.json";
-import thingy from "../abis/UniswapV2Router02.json";
-import uniswapPairAbi from "../abis/UniswapV2Pair.json";
+import pancakeFactoryArtifact from "../pancakeswap-core-build/PancakeFactory.json";
+import uniswapPairArtifact from "../abis/UniswapV2Pair.json";
 
 export const deployPair = async (
-  pancakeFactory: Contract,
   tokenA: Contract,
   tokenAAmount: BigNumber,
   tokenB: Contract,
   tokenBAmount: BigNumber,
   router: Contract,
-  owner: string
+  owner: SignerWithAddress
 ): Promise<Contract> => {
+  const pancakeFactoryAddr = await router.factory();
+  const pancakeFactory = new ethers.Contract(
+    pancakeFactoryAddr,
+    pancakeFactoryArtifact.abi
+  ).connect(owner);
   await pancakeFactory.createPair(tokenA.address, tokenB.address);
   const pair = await pancakeFactory.getPair(tokenA.address, tokenB.address);
   tokenA.approve(router.address, tokenAAmount);
@@ -28,24 +34,27 @@ export const deployPair = async (
     tokenBAmount,
     tokenAAmount,
     tokenBAmount,
-    owner,
+    owner.address,
     block.timestamp + 600
   );
-  return new ethers.Contract(pair, uniswapPairAbi.abi, router.signer);
+  return new ethers.Contract(pair, uniswapPairArtifact.abi, router.signer);
 };
 
 export const deployPancakeExchange = async (
-  owner: string,
+  owner: SignerWithAddress,
   mockBUSD: Contract,
   mockWETH: Contract,
-  tokens: Record<string, { contract: Contract; liquidity: BigNumber }>
+  tokens: Record<string, { contract: Contract; liquidity: BigNumber }> = {}
 ) => {
-  const Router = await ethers.getContractFactory(thingy.abi, thingy.bytecode);
-  const PancakeFactory = await ethers.getContractFactory(
-    otherthingy.abi,
-    otherthingy.bytecode
+  const Router = await ethers.getContractFactory(
+    RouterAbi.abi,
+    RouterAbi.bytecode
   );
-  const pancakeFactory = await PancakeFactory.deploy(owner);
+  const PancakeFactory = await ethers.getContractFactory(
+    FactoryAbi.abi,
+    FactoryAbi.bytecode
+  );
+  const pancakeFactory = await PancakeFactory.deploy(owner.address);
   const pancakeRouter: Contract = await Router.deploy(
     pancakeFactory.address,
     mockWETH.address
@@ -54,7 +63,6 @@ export const deployPancakeExchange = async (
 
   for (const token of Object.keys(tokens)) {
     pairs[token] = await deployPair(
-      pancakeFactory,
       mockBUSD,
       expandTo18Decimals(10000000), // $10,000,000
       tokens[token].contract,
@@ -67,8 +75,8 @@ export const deployPancakeExchange = async (
 };
 
 export const deployPancakeUtilities = async () => {
-  const PancakeUtilities = await ethers.getContractFactory(
+  const pancakeUtilities = await ethers.getContractFactory(
     "PancakeswapUtilities"
   );
-  return await PancakeUtilities.deploy();
+  return await pancakeUtilities.deploy();
 };

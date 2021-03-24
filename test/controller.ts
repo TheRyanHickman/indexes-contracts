@@ -1,13 +1,13 @@
-import { Contract, ContractFactory } from "@ethersproject/contracts";
 import { deployPancakeExchange, deployPancakeUtilities } from "./pancakeswap";
 
 import { BigNumber } from "@ethersproject/bignumber";
+import { Contract } from "@ethersproject/contracts";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
+import { Wallet } from "@ethersproject/wallet";
 import { deployMockToken } from "./token";
 import { ethers } from "hardhat";
 import { expandTo18Decimals } from "./utils";
 import { expect } from "chai";
-import { isAddress } from "@ethersproject/address";
 import poolAbi from "../artifacts/contracts/indexes/IndexPool.sol/IndexPool.json";
 
 describe("Pool Controller", function () {
@@ -20,27 +20,22 @@ describe("Pool Controller", function () {
     pancakeRouter: Contract;
 
   before(async () => {
-    [, , owner] = await ethers.getSigners();
+    [owner] = await ethers.getSigners();
     mockLEV = await deployMockToken("Fake LEV", "VEL", owner.address);
     mockSLEV = await deployMockToken("Fake SLEV", "VELS", owner.address);
     mockBUSD = await deployMockToken("Fake BUSD", "DSUB", owner.address);
     mockBTC = await deployMockToken("Fake BTC", "CTB", owner.address);
     mockWETH = await deployMockToken("Fake WETH", "HTEW", owner.address);
-    const exchange = await deployPancakeExchange(
-      owner.address,
-      mockBUSD,
-      mockWETH,
-      {
-        WETH: {
-          contract: mockWETH,
-          liquidity: expandTo18Decimals(5000),
-        },
-        BTC: {
-          contract: mockBTC,
-          liquidity: expandTo18Decimals(200),
-        },
-      }
-    );
+    const exchange = await deployPancakeExchange(owner, mockBUSD, mockWETH, {
+      WETH: {
+        contract: mockWETH,
+        liquidity: expandTo18Decimals(5000),
+      },
+      BTC: {
+        contract: mockBTC,
+        liquidity: expandTo18Decimals(200),
+      },
+    });
     pancakeRouter = exchange.pancakeRouter;
   });
 
@@ -56,7 +51,7 @@ describe("Pool Controller", function () {
       mockLEV.address,
       mockSLEV.address,
       pancakeRouter.address,
-      pancakeRouter.address
+      owner.address
     );
     await controllerContract.createIndexPool(
       "Test INDX",

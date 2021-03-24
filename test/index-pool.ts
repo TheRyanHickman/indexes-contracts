@@ -1,14 +1,5 @@
-import {
-  deployPair,
-  deployPancakeExchange,
-  deployPancakeUtilities,
-} from "./pancakeswap";
-import {
-  expandTo18Decimals,
-  from18Decimals,
-  logBalanceOf,
-  zero,
-} from "./utils";
+import { deployPancakeExchange, deployPancakeUtilities } from "./pancakeswap";
+import { expandTo18Decimals, from18Decimals, logBalanceOf } from "./utils";
 
 import { BigNumber } from "@ethersproject/bignumber";
 import { Contract } from "@ethersproject/contracts";
@@ -32,21 +23,16 @@ describe("Index Pool", function () {
     mockBUSD = await deployMockToken("Test BUSD", "TBUSD", owner.address);
     mockWETH = await deployMockToken("Test WETH", "TWETH", owner.address);
     mockBTC = await deployMockToken("Test BTC", "TBTC", owner.address);
-    const exchange = await deployPancakeExchange(
-      owner.address,
-      mockBUSD,
-      mockWETH,
-      {
-        WETH: {
-          contract: mockWETH,
-          liquidity: expandTo18Decimals(5000),
-        },
-        BTC: {
-          contract: mockBTC,
-          liquidity: expandTo18Decimals(200),
-        },
-      }
-    );
+    const exchange = await deployPancakeExchange(owner, mockBUSD, mockWETH, {
+      WETH: {
+        contract: mockWETH,
+        liquidity: expandTo18Decimals(5000),
+      },
+      BTC: {
+        contract: mockBTC,
+        liquidity: expandTo18Decimals(200),
+      },
+    });
     pairs = exchange.pairs;
     pancakeRouter = exchange.pancakeRouter;
     pancakeFactory = exchange.pancakeFactory;
@@ -106,10 +92,12 @@ describe("Index Pool", function () {
     const ourBalance = await pool.balanceOf(owner.address);
     await pool.burn(ourBalance);
     const ourNewBalance = await pool.balanceOf(owner.address);
-    expect(ourNewBalance).to.equal(zero);
+    expect(ourNewBalance).to.equal(ethers.constants.Zero);
     const poolETHBalance = await mockWETH.balanceOf(pool.address);
-    expect(poolETHBalance).to.equal(zero);
-    expect(await mockBTC.balanceOf(pool.address)).to.equal(zero);
+    expect(poolETHBalance).to.equal(ethers.constants.Zero);
+    expect(await mockBTC.balanceOf(pool.address)).to.equal(
+      ethers.constants.Zero
+    );
   });
 
   it("Collect fees on trades", async () => {
@@ -122,7 +110,9 @@ describe("Index Pool", function () {
     };
     // empty dev team balance
     await emptyDevAccount();
-    expect(await mockBUSD.balanceOf(devTeam.address)).to.equal(zero);
+    expect(await mockBUSD.balanceOf(devTeam.address)).to.equal(
+      ethers.constants.Zero
+    );
 
     // buy index
     await mockBUSD.approve(pool.address, price.mul(3));

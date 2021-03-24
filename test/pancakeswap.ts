@@ -17,11 +17,6 @@ export const deployPair = async (
 ): Promise<Contract> => {
   await pancakeFactory.createPair(tokenA.address, tokenB.address);
   const pair = await pancakeFactory.getPair(tokenA.address, tokenB.address);
-  if (tokenA.address < tokenB.address) {
-    const tempTok = tokenB;
-    tokenB = tokenA;
-    tokenA = tempTok;
-  }
   tokenA.approve(router.address, tokenAAmount);
   tokenB.approve(router.address, tokenBAmount);
   const block = await getLastBlock(router.provider);
@@ -69,4 +64,11 @@ export const deployPancakeExchange = async (
     );
   }
   return { pairs, pancakeRouter, pancakeFactory };
+};
+
+export const deployPancakeUtilities = async () => {
+  const PancakeUtilities = await ethers.getContractFactory(
+    "PancakeswapUtilities"
+  );
+  return await PancakeUtilities.deploy();
 };

@@ -123,14 +123,13 @@ contract LEVStackingPool {
         uint256 SLEVAmount = stacker.rewards[rewardTokenInfo.index];
         stacker.rewards[rewardTokenInfo.index] = 0;
         _SLEV.mint(stacker.wallet, SLEVAmount);
-        // PancakeswapUtilities.sellToken(
-        //     address(rewardTokenInfo.rewardToken),
-        //     address(0), // TODO: get BUSD address
-        //     stacker.wallet,
-        //     SLEVAmount,
-        //     rewardTokenInfo.lp
-        //      TODO: needs pancakeswap factory
-        // );
+        PancakeswapUtilities.sellToken(
+            address(rewardTokenInfo.rewardToken),
+            address(0), // TODO: get BUSD address
+            stacker.wallet,
+            SLEVAmount,
+            IUniswapV2Router02(address(0)) // TODO: router
+        );
     }
 
     function initializeStacker(

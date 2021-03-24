@@ -31,7 +31,6 @@ contract IndexPool is ERC20 {
     uint256[] memory targetWeights,
     address BUSD,
     address router,
-    address factory,
     address indexController,
     uint8[] memory categories
   ) ERC20(name, symbol) {
@@ -41,7 +40,7 @@ contract IndexPool is ERC20 {
     _underlyingTokens = underlyingTokens;
     _BUSD = ERC20(BUSD);
     _pancakeRouter = IUniswapV2Router02(router);
-    _pancakeFactory = IUniswapV2Factory(factory);
+    _pancakeFactory = IUniswapV2Factory(_pancakeRouter.factory());
     _targetWeights = targetWeights;
     _indexController = indexController;
     _categories = categories;

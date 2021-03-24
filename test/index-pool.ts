@@ -1,4 +1,8 @@
-import { deployPair, deployPancakeExchange } from "./pancakeswap";
+import {
+  deployPair,
+  deployPancakeExchange,
+  deployPancakeUtilities,
+} from "./pancakeswap";
 import {
   expandTo18Decimals,
   from18Decimals,
@@ -142,8 +146,7 @@ describe("Index Pool", function () {
   });
 
   const deployMockIndexPool = async (symbol: string) => {
-    if (!pancakeswapUtilities)
-      pancakeswapUtilities = await deployPancakeUtilities();
+    pancakeswapUtilities = await deployPancakeUtilities();
     const IndexPool = await ethers.getContractFactory("IndexPool", {
       libraries: {
         PancakeswapUtilities: pancakeswapUtilities.address,
@@ -156,18 +159,10 @@ describe("Index Pool", function () {
       [2, 1],
       mockBUSD.address,
       pancakeRouter.address,
-      pancakeFactory.address,
       devTeam.address,
       [0]
     );
     await pool.deployed();
     return pool;
-  };
-
-  const deployPancakeUtilities = async () => {
-    const PancakeUtilities = await ethers.getContractFactory(
-      "PancakeswapUtilities"
-    );
-    return await PancakeUtilities.deploy();
   };
 });

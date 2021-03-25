@@ -14,20 +14,19 @@ contract LEVToken is ERC20, IBurnable {
     uint256 _mintPerBlock;
     SLEVToken _SLev;
     address _pancakeRouter;
+    address _teamSharing;
 
-    /*
-        10% pour la team
-        10% en trésorerie
-        70% pour les utilisateurs qui stake les tokens LP
-        10% pour les utilisateurs qui stake du LEV 
-    */
+    uint constant teamPart = 10;
+    uint constant treasuryPart = 10;
+    uint constant stakingPart = 80; 
 
     constructor(
         address owner,
         uint256 initialSupply,
         uint256 mintPerBlock,
         address SLev,
-        address pancakeRouter
+        address pancakeRouter,
+        address teamSharing
     ) ERC20("Levyathan", "LEV") {
         _mint(owner, initialSupply);
         _initialSupply = initialSupply;
@@ -35,27 +34,45 @@ contract LEVToken is ERC20, IBurnable {
         _SLev = SLEVToken(SLev);
         _createdAtBlock = block.number;
         _pancakeRouter = pancakeRouter;
+        _teamSharing = teamSharing;
     }
 
-    function updateTotalSupply() public {
+    function updateTotalSupply() external {
         uint256 expectedTotalSupply =
             _mintPerBlock * (block.number - _createdAtBlock) + _initialSupply;
         uint256 missingQuantity = expectedTotalSupply - totalSupply();
         _mint(address(this), missingQuantity);
+        redistributeMintedAmount();
     }
 
-    function buySLEVForBurn() public {
+    function redistributeMintedAmount() internal {
+        uint amountToRedistribute = balanceOf(address(this));
+        uint devTeamAmount = (amountToRedistribute * (teamPart + treasuryPart)) / 100;
+
+        // 20% of the minted LEV is sent to the dev team + treasury contract
+        _transfer(address(this), _teamSharing, devTeamAmount);
+        amountToRedistribute -= devTeamAmount;
+
+        // 80% of the minted LEV is sent to the staking users (via buying SLEV staking token)
+        buySLEVForBurn(amountToRedistribute);
+    }
+
+    function buySLEVForBurn(uint amountToSell) public {
         address thisAddress = address(this);
         PancakeswapUtilities.sellToken(
             thisAddress,
             address(_SLev),
-            _pancakeRouter, // burning the coin to router. Pair doesn't accept address(0)
-            balanceOf(thisAddress),
+            _pancakeRouter, // burning the SLEV to router. Pair doesn't accept address(0)
+            amountToSell,
             IUniswapV2Router02(_pancakeRouter)
         );
     }
 
-    function burn(uint256 amount) public override {
+    function burn(uint256 amount) external override {
         _burn(msg.sender, amount);
+    }
+
+    function getCreatedAtBlock() external view returns(uint) {
+        return _createdAtBlock;
     }
 }

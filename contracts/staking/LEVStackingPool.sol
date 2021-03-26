@@ -3,6 +3,7 @@ pragma solidity ^0.8.0;
 
 import "hardhat/console.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "contracts/interfaces/IBEP20.sol";
 import "@uniswap/v2-core/contracts/interfaces/IUniswapV2Pair.sol";
 import "contracts/tokens/SLEVToken.sol";
 import "contracts/tokens/LEVToken.sol";
@@ -11,28 +12,32 @@ import "contracts/utilities/PancakeswapUtilities.sol";
 contract LEVStackingPool {
     uint256 _totalStacked;
     SLEVToken _SLEV;
+    IBEP20 _stakeToken;
     RewardTokenInfo[] _rewardTokens;
+    IUniswapV2Router02 _router;
     mapping(address => Stacker) _stackers;
     mapping(address => RewardTokenInfo) _rewardTokenMap;
 
     constructor(
         address SLEV,
+        address stakeToken,
         address[] memory rewardTokens,
         uint256[] memory SLEVPerBlock,
-        address[] memory lp
+        IUniswapV2Router02 router
     ) {
         require(
             rewardTokens.length == SLEVPerBlock.length,
-            "reaward tokens and reward per block arrays must have the same size."
+            "reward tokens and reward per block arrays must have the same size."
         );
         _SLEV = SLEVToken(SLEV);
+        _router = router;
+        _stakeToken = IBEP20(stakeToken);
         for (uint256 i = 0; i < rewardTokens.length; i++) {
             address rewardTokenAddress = rewardTokens[i];
             ERC20 rewardToken = ERC20(rewardTokenAddress);
             _rewardTokens.push(
                 RewardTokenInfo({
                     rewardToken: rewardToken,
-                    lp: IUniswapV2Pair(lp[i]),
                     SLEVPerBlock: SLEVPerBlock[i],
                     index: i
                 })
@@ -57,7 +62,7 @@ contract LEVStackingPool {
         _;
     }
 
-    function calCulateRewards(Stacker storage stacker, uint256 blockNumber)
+    function calculateRewards(Stacker storage stacker, uint256 blockNumber)
         private
         view
         returns (uint256[] memory)
@@ -67,7 +72,7 @@ contract LEVStackingPool {
             uint256 SLEVPerBlock = _rewardTokens[i].SLEVPerBlock;
             uint256 blockRewards =
                 (blockNumber - stacker.lastUpdateBlock) * SLEVPerBlock;
-            rewards[i] = blockRewards * stacker.stackedAmount;
+            rewards[i] = (blockRewards * stacker.stackedAmount) / 1e18;
         }
         return rewards;
     }
@@ -75,17 +80,16 @@ contract LEVStackingPool {
     function updateRewards(Stacker storage stacker, uint256 blockNumber)
         private
     {
-        stacker.rewards = calCulateRewards(stacker, blockNumber);
+        stacker.rewards = calculateRewards(stacker, blockNumber);
         stacker.lastUpdateBlock = blockNumber;
         stacker.totalStackedOnLastUpdate = _totalStacked;
     }
 
     function stack(uint256 stackAmount) public {
-        address sender = msg.sender;
-        //_stakeToken.transferFrom(sender, address(this), stackAmount);
-        Stacker storage stacker = _stackers[sender];
+        _stakeToken.transferFrom(msg.sender, address(this), stackAmount);
+        Stacker storage stacker = _stackers[msg.sender];
         if (stacker.wallet == address(0))
-            initializeStacker(stacker, sender, stackAmount);
+            initializeStacker(stacker, msg.sender, stackAmount);
         else updateRewards(stacker, block.number);
         _totalStacked += stackAmount;
     }
@@ -123,13 +127,13 @@ contract LEVStackingPool {
             _rewardTokenMap[rewardTokenAddress];
         uint256 SLEVAmount = stacker.rewards[rewardTokenInfo.index];
         stacker.rewards[rewardTokenInfo.index] = 0;
-        _SLEV.mint(stacker.wallet, SLEVAmount);
+        _SLEV.mint(address(this), SLEVAmount);
         PancakeswapUtilities.sellToken(
+            address(_SLEV),
             address(rewardTokenInfo.rewardToken),
-            address(0), // TODO: get BUSD address
             stacker.wallet,
             SLEVAmount,
-            IUniswapV2Router02(address(0)) // TODO: router
+            _router
         );
     }
 
@@ -145,22 +149,17 @@ contract LEVStackingPool {
         stacker.rewards = new uint256[](_rewardTokens.length);
     }
 
-    function getCurrentRewards(address wallet)
+    function getCurrentRewards(address wallet, address token)
         public
         view
-        stackerOnly
-        returns (RewardToken[] memory)
+        returns (uint)
     {
+        if (_stackers[wallet].wallet == address(0))
+            return 0;
         uint256[] memory rewards =
-            calCulateRewards(_stackers[wallet], block.number);
-        RewardToken[] memory rewardsToken =
-            new RewardToken[](_rewardTokens.length);
-        for (uint256 i = 0; i < _rewardTokens.length; i++) {
-            RewardTokenInfo memory rewardTokenInfo = _rewardTokens[i];
-            rewardsToken[i].amount = rewards[i] * 0; // find price with lp rewardTokenInfo.lp
-            rewardsToken[i].token = address(rewardTokenInfo.rewardToken);
-        }
-        return rewardsToken;
+            calculateRewards(_stackers[wallet], block.number);
+        RewardTokenInfo memory rewardToken = _rewardTokenMap[token];
+        return rewards[rewardToken.index] * 1; // find price with lp rewardTokenInfo.lp
     }
 
     function getStacker(address stackerAddress)
@@ -174,7 +173,6 @@ contract LEVStackingPool {
 
 struct RewardTokenInfo {
     ERC20 rewardToken;
-    IUniswapV2Pair lp;
     uint256 index;
     uint256 SLEVPerBlock;
 }

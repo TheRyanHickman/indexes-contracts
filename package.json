@@ -1,7 +1,9 @@
 {
   "name": "hardhat-project",
   "scripts": {
-    "test": "hardhat test"
+    "test": "hardhat test",
+    "deploy:testnet": "hardhat run --network testnet ./scripts/deploy.ts",
+    "deploy:local": "hardhat run ./scripts/deploy.ts"
   },
   "devDependencies": {
     "@nomiclabs/hardhat-ethers": "^2.0.2",

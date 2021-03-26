@@ -9,12 +9,13 @@ import "contracts/staking/LEVStackingPool.sol";
 contract SLEVToken is ERC20, IMintable, IBurnable {
     uint256 _initialSupply;
     LEVStackingPool[] _stackingPools;
-    mapping(address => bool) _minters;
+    address _minter;
 
     constructor(address owner, uint256 initialSupply)
         ERC20("Stacked LEV", "SLEV")
     {
         _initialSupply = initialSupply;
+        _minter = owner;
         _mint(owner, initialSupply);
     }
 
@@ -23,20 +24,24 @@ contract SLEVToken is ERC20, IMintable, IBurnable {
     // uint256[] memory SLEVPerBlock,
     // address[] memory lp
 
-    modifier mintersOnly {
-        require(_minters[msg.sender], "Only allowed minters.");
+    modifier minterOnly {
+        require(_minter == msg.sender, "SLEV: NOT_MINTER");
         _;
     }
 
     function mint(address receiver, uint256 amount)
         external
         override
-        mintersOnly
+        minterOnly
     {
         return _mint(receiver, amount);
     }
 
     function burn(uint256 amount) public override {
         _burn(msg.sender, amount);
+    }
+
+    function setMinter(address newMinter) public minterOnly {
+        _minter = newMinter;
     }
 }

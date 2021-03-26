@@ -18,7 +18,7 @@ describe("LEV token", function () {
     mockSLEV: Contract,
     mockBUSD: Contract,
     mockWETH: Contract,
-    pancakeRouter: Contract,
+    pancakeRouter: Contract;
 
   before(async () => {
     [owner] = await ethers.getSigners();

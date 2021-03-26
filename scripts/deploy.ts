@@ -1,4 +1,5 @@
 import { Contract, ContractFactory } from "@ethersproject/contracts";
+import { deployLEV, deploySLEV } from "./deploy-tokens";
 import {
   deployPancakeExchange,
   deployPancakeUtilities,
@@ -6,6 +7,7 @@ import {
 import hre, { ethers } from "hardhat";
 
 import { deployMockToken } from "../test/token";
+import { deployStakingPool } from "./deploy-staking";
 import { expandTo18Decimals } from "../test/utils";
 
 let addresses: ContractAddresses = {
@@ -28,7 +30,7 @@ const main = async () => {
   const network = hre.network.name;
 
   // if deploying locally, we need to locally deploy pancakeswap and tokens
-  if (network === "hardhat") {
+  if (network === "hardhat" || network === "localhost") {
     const mockBUSD = await deployMockToken("Fake BUSD", "DSUB", owner.address);
     const mockWETH = await deployMockToken("Fake WETH", "HTEW", owner.address);
     const exchange = await deployPancakeExchange(owner, mockBUSD, mockWETH, {});
@@ -45,7 +47,7 @@ const main = async () => {
     };
   }
 
-  console.log("Deploying all contracts...");
+  console.log(`Deploying all contracts to ${network} by ${owner.address}...`);
   const utilities = await deployPancakeUtilities();
   logPoint();
 
@@ -76,6 +78,13 @@ const main = async () => {
   );
   logPoint();
   const indexInstanceAddress = await deployTestIndex(indexController);
+  logPoint();
+  const stakingPool = await deployStakingPool(
+    utilities.address,
+    slev.address,
+    lev.address,
+    addrs.pancakeRouter
+  );
   console.log("\nContracts deployed", {
     utilities: utilities.address,
     slev: slev.address,
@@ -83,34 +92,8 @@ const main = async () => {
     indexController: indexController.address,
     indexInstance: indexInstanceAddress,
     tokenSharing: teamSharing.address,
+    stakingPool: stakingPool,
   });
-};
-
-const deploySLEV = async (owner: string) => {
-  const SlevFactory = await ethers.getContractFactory("SLEVToken");
-  return SlevFactory.deploy(owner, expandTo18Decimals(10000));
-};
-
-const deployLEV = async (
-  utilities: string,
-  owner: string,
-  router: string,
-  slev: string,
-  teamSharing: string
-) => {
-  const LevFactory = await ethers.getContractFactory("LEVToken", {
-    libraries: {
-      PancakeswapUtilities: utilities,
-    },
-  });
-  return LevFactory.deploy(
-    owner,
-    expandTo18Decimals(10000),
-    expandTo18Decimals(40),
-    slev,
-    router,
-    teamSharing
-  );
 };
 
 const deployTestIndex = async (indexController: Contract) => {

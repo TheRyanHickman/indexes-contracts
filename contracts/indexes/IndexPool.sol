@@ -20,7 +20,7 @@ contract IndexPool is ERC20 {
 
     event Mint(address indexed to, uint256 amount, uint256 cost);
     event Burn(address indexed from, uint256 amount, uint256 paid);
-    event CompositionChanged(address[] tokens, uint256[] weights);
+    event CompositionChange(address[] tokens, uint256[] weights);
 
     constructor(
         string memory name,

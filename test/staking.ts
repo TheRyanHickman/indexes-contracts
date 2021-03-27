@@ -65,6 +65,9 @@ describe("Stacking pools", function () {
       mockLEV.address
     );
     expect(rewards).to.equal(ethers.constants.Zero);
+    expect(await stackingPool.getStackedAmount()).to.equal(
+      ethers.constants.Zero
+    );
   });
 
   it("Generates rewards in SLEV", async () => {
@@ -74,13 +77,21 @@ describe("Stacking pools", function () {
     expect(await mockLEV.balanceOf(owner.address)).to.equal(
       balanceLEVBefore.sub(expandTo18Decimals(20))
     );
-    await mineBlock(owner.provider);
-    await mineBlock(owner.provider);
-    const currentReward = await stackingPool.getCurrentRewards(
-      owner.address,
-      mockLEV.address
+    expect(await stackingPool.getStackedAmount()).to.equal(
+      expandTo18Decimals(20)
     );
-    expect(currentReward).to.equal(expandTo18Decimals(40));
+    await mineBlock(owner.provider);
+    await mineBlock(owner.provider);
+
+    await mockLEV.approve(stackingPool.address, expandTo18Decimals(1));
+    await stackingPool.stack(expandTo18Decimals(1));
+    await mineBlock(owner.provider);
+    expect(await stackingPool.getStackedAmount()).to.equal(
+      expandTo18Decimals(21)
+    );
+    expect(
+      await stackingPool.getCurrentRewards(owner.address, mockLEV.address)
+    ).to.equal(expandTo18Decimals(1050));
   });
 
   it("Gets rewarded with LEV", async () => {
@@ -90,10 +101,14 @@ describe("Stacking pools", function () {
     await mineBlock(owner.provider);
     await mineBlock(owner.provider);
     const balanceLEVBefore = await mockLEV.balanceOf(owner.address);
+    const availableRewards = await stackingPool.getCurrentRewards(
+      owner.address,
+      mockLEV.address
+    );
     await stackingPool.collectAllRewards();
     const balanceLEVAfter = await mockLEV.balanceOf(owner.address);
-    expect(balanceLEVAfter.sub(balanceLEVBefore)).to.equal(
-      BigNumber.from("791288681476543092295")
-    );
+    const difference = balanceLEVAfter.sub(balanceLEVBefore);
+    expect(difference).to.equal(BigNumber.from("3044922680749714830878"));
+    expect(availableRewards).to.equal(BigNumber.from("2820000000000000000000"));
   });
 });

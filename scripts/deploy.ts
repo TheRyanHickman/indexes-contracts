@@ -1,6 +1,7 @@
 import { Contract, ContractFactory } from "@ethersproject/contracts";
 import { deployLEV, deploySLEV } from "./deploy-tokens";
 import {
+  deployPair,
   deployPancakeExchange,
   deployPancakeUtilities,
 } from "../test/pancakeswap";
@@ -9,6 +10,7 @@ import hre, { ethers } from "hardhat";
 import { deployMockToken } from "../test/token";
 import { deployStakingPool } from "./deploy-staking";
 import { expandTo18Decimals } from "../test/utils";
+import fs from "fs";
 
 let addresses: ContractAddresses = {
   testnet: {
@@ -24,27 +26,55 @@ let addresses: ContractAddresses = {
 };
 
 const main = async () => {
-  const owner = await ethers.getSigner(
-    "0xa5Caf1729c2628A3f04a60f7299f86148D1687f7"
-  );
-  const network = hre.network.name;
+  const network: "localhost" | "ropsten" | "hardhat" | "testnet" = hre.network
+    .name as any;
+  const ownerAddr = {
+    localhost: "0x8626f6940e2eb28930efb4cef49b2d1f2c9c1199",
+    ropsten: "0xa5Caf1729c2628A3f04a60f7299f86148D1687f7",
+    testnet: "",
+    hardhat: "",
+  };
+  const owner = await ethers.getSigner(ownerAddr[network]);
+  let mockBUSD: Contract | undefined = undefined;
+  let router: Contract | undefined = undefined;
 
   // if deploying locally, we need to locally deploy pancakeswap and tokens
-  if (network === "hardhat" || network === "localhost") {
-    const mockBUSD = await deployMockToken("Fake BUSD", "DSUB", owner.address);
+  if (
+    network === "hardhat" ||
+    network === "localhost" ||
+    network === "ropsten"
+  ) {
+    mockBUSD = await deployMockToken("Fake BUSD", "DSUB", owner.address);
     const mockWETH = await deployMockToken("Fake WETH", "HTEW", owner.address);
-    const exchange = await deployPancakeExchange(owner, mockBUSD, mockWETH, {});
+    const mockBTC = await deployMockToken("Fake BTC", "BTCF", owner.address);
+    const mockBNB = await deployMockToken("Fake BNB", "BNBF", owner.address);
+    const exchange = await deployPancakeExchange(owner, mockBUSD, mockWETH, {
+      BTC: {
+        contract: mockBTC,
+        liquidity: expandTo18Decimals(10000),
+      },
+      BNB: {
+        contract: mockBNB,
+        liquidity: expandTo18Decimals(10000),
+      },
+      WETH: {
+        contract: mockWETH,
+        liquidity: expandTo18Decimals(10000),
+      },
+    });
+    router = exchange.pancakeRouter;
     addresses[network] = {
       pancakeRouter: exchange.pancakeRouter.address,
       pancakeFactory: exchange.pancakeFactory.address,
       tokens: {
         BUSD: mockBUSD.address,
-        BTCB: (await deployMockToken("Fake BTC", "CTB", owner.address)).address,
+        BTCB: mockBTC.address,
         WETH: mockWETH.address,
-        WBNB: (await deployMockToken("Fake WBNB", "BNBW", owner.address))
-          .address,
+        WBNB: mockBNB.address,
       },
     };
+  } else {
+    throw new Error("TODO: create router contract from address");
   }
 
   console.log(`Deploying all contracts to ${network} by ${owner.address}...`);
@@ -79,13 +109,23 @@ const main = async () => {
   logPoint();
   const indexInstanceAddress = await deployTestIndex(indexController);
   logPoint();
+  await deployPair(
+    lev,
+    expandTo18Decimals(1000),
+    slev,
+    expandTo18Decimals(1000),
+    router,
+    owner
+  );
+  logPoint();
   const stakingPool = await deployStakingPool(
     utilities.address,
     slev.address,
     lev.address,
     addrs.pancakeRouter
   );
-  console.log("\nContracts deployed", {
+  await slev.connect(owner).setMinter(stakingPool);
+  const deployed = {
     utilities: utilities.address,
     slev: slev.address,
     lev: lev.address,
@@ -93,11 +133,18 @@ const main = async () => {
     indexInstance: indexInstanceAddress,
     tokenSharing: teamSharing.address,
     stakingPool: stakingPool,
-  });
+    router: addrs.pancakeRouter,
+  };
+  console.log(deployed);
+  fs.writeFileSync(
+    "./deployed-contracts.json",
+    JSON.stringify(deployed, null, 2)
+  );
 };
 
 const deployTestIndex = async (indexController: Contract) => {
-  const tokensAddrs = addresses["testnet"].tokens;
+  const network = hre.network.name;
+  const tokensAddrs = addresses[network].tokens;
   await indexController.deployed();
   const tx = await indexController.createIndexPool(
     "Legacy Index",
@@ -107,6 +154,11 @@ const deployTestIndex = async (indexController: Contract) => {
     [0]
   );
   await tx.wait();
+  console.error("underlying tokens are", [
+    tokensAddrs.BTCB,
+    tokensAddrs.WETH,
+    tokensAddrs.WBNB,
+  ]);
   return await indexController.pools(0);
 };
 
@@ -117,7 +169,7 @@ const deployTeamSharing = async (owner: string) => {
 };
 
 const logPoint = () => {
-  process.stdout.write(".");
+  process.stderr.write(".");
 };
 
 // We recommend this pattern to be able to use async/await everywhere

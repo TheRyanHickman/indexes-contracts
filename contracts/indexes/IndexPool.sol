@@ -48,6 +48,8 @@ contract IndexPool is ERC20 {
         _tokenWeights = tokenWeights;
         _indexController = indexController;
         _categories = categories;
+
+        emit CompositionChange(underlyingTokens, tokenWeights);
     }
 
     function mint(uint256 BUSDIn, uint256 minAmountOut) public {

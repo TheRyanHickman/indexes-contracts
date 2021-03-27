@@ -69,12 +69,18 @@ contract LEVStackingPool {
     {
         uint256[] memory rewards = new uint256[](_rewardTokens.length);
         for (uint256 i = 0; i < _rewardTokens.length; i++) {
-            uint256 SLEVPerBlock = _rewardTokens[i].SLEVPerBlock;
-            uint256 blockRewards =
-                (blockNumber - stacker.lastUpdateBlock) * SLEVPerBlock;
-            rewards[i] = (blockRewards * stacker.stackedAmount) / 1e18;
+            rewards[i] = calculateReward(stacker, blockNumber, address(_rewardTokens[i].rewardToken));
         }
         return rewards;
+    }
+
+    function calculateReward(Stacker storage stacker, uint blockNumber, address token) private view returns (uint) {
+        if (stacker.wallet == address(0))
+          return 0;
+        RewardTokenInfo storage tokenInfo = _rewardTokenMap[token];
+        uint256 SLEVPerBlock = tokenInfo.SLEVPerBlock;
+        uint256 blockRewards = (blockNumber - stacker.lastUpdateBlock) * SLEVPerBlock;
+        return stacker.rewards[tokenInfo.index] + (blockRewards * stacker.stackedAmount) / 1e18;
     }
 
     function updateRewards(Stacker storage stacker, uint256 blockNumber)
@@ -90,7 +96,10 @@ contract LEVStackingPool {
         Stacker storage stacker = _stackers[msg.sender];
         if (stacker.wallet == address(0))
             initializeStacker(stacker, msg.sender, stackAmount);
-        else updateRewards(stacker, block.number);
+        else {
+            stacker.stackedAmount += stackAmount;
+            updateRewards(stacker, block.number);
+        }
         _totalStacked += stackAmount;
     }
 
@@ -99,7 +108,7 @@ contract LEVStackingPool {
         stackerOnly
         minStackedAmount(amount)
     {
-        //_stakeToken.transferFrom(address(this), msg.sender, stackAmount);
+        _stakeToken.transferFrom(address(this), msg.sender, amount);
         Stacker storage stacker = _stackers[msg.sender];
         updateRewards(stacker, block.number);
         stacker.stackedAmount -= amount;
@@ -149,17 +158,32 @@ contract LEVStackingPool {
         stacker.rewards = new uint256[](_rewardTokens.length);
     }
 
+    function getCurrentRewardSLEV(address wallet)
+        private
+        view
+        returns (uint[] memory)
+    {
+        return calculateRewards(_stackers[wallet], block.number);
+    }
+
+    function getCurrentRewardSLEV(address wallet, address token) private view returns (uint) {
+        if (wallet == address(0))
+            return 0;
+        return calculateReward(_stackers[wallet], block.number, token);
+    }
+
     function getCurrentRewards(address wallet, address token)
         public
         view
         returns (uint)
     {
-        if (_stackers[wallet].wallet == address(0))
+        Stacker storage stacker = _stackers[wallet];
+        uint totalRewardSLEV = getCurrentRewardSLEV(wallet, token);
+        if (totalRewardSLEV == 0)
             return 0;
-        uint256[] memory rewards =
-            calculateRewards(_stackers[wallet], block.number);
-        RewardTokenInfo memory rewardToken = _rewardTokenMap[token];
-        return rewards[rewardToken.index] * 1; // find price with lp rewardTokenInfo.lp
+        IUniswapV2Pair pair = IUniswapV2Pair(PancakeswapUtilities.pairFor(_router.factory(), token, address(_SLEV)));
+        (uint reservesA, uint reservesB) = PancakeswapUtilities.getReservesOrdered(pair, token, address(_SLEV));
+        return _router.quote(totalRewardSLEV, reservesB, reservesA);
     }
 
     function getStacker(address stackerAddress)
@@ -168,6 +192,13 @@ contract LEVStackingPool {
         returns (Stacker memory)
     {
         return _stackers[stackerAddress];
+    }
+
+    function getStackedAmount() public view returns(uint256) {
+        Stacker memory stacker = _stackers[msg.sender];
+        if (stacker.wallet == address(0))
+          return 0;
+        return _stackers[msg.sender].stackedAmount;
     }
 }
 
@@ -183,9 +214,4 @@ struct Stacker {
     uint256 totalStackedOnLastUpdate;
     address wallet;
     uint256[] rewards;
-}
-
-struct RewardToken {
-    address token;
-    uint256 amount;
 }

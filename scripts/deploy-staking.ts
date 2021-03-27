@@ -1,3 +1,4 @@
+import { deployPair } from "../test/pancakeswap";
 import { ethers } from "hardhat";
 import { expandTo18Decimals } from "../test/utils";
 

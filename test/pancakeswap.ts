@@ -21,10 +21,13 @@ export const deployPair = async (
     pancakeFactoryAddr,
     pancakeFactoryArtifact.abi
   ).connect(owner);
-  await pancakeFactory.createPair(tokenA.address, tokenB.address);
+  let tx = await pancakeFactory.createPair(tokenA.address, tokenB.address);
+  await tx.wait();
   const pair = await pancakeFactory.getPair(tokenA.address, tokenB.address);
-  tokenA.approve(router.address, tokenAAmount);
-  tokenB.approve(router.address, tokenBAmount);
+  tx = await tokenA.approve(router.address, tokenAAmount);
+  await tx.wait();
+  tx = await tokenB.approve(router.address, tokenBAmount);
+  await tx.wait();
   const block = await getLastBlock(router.provider);
 
   await router.addLiquidity(
@@ -62,14 +65,18 @@ export const deployPancakeExchange = async (
   let pairs: Record<string, Contract> = {};
 
   for (const token of Object.keys(tokens)) {
-    pairs[token] = await deployPair(
-      mockBUSD,
-      expandTo18Decimals(10000000), // $10,000,000
-      tokens[token].contract,
-      tokens[token].liquidity,
-      pancakeRouter,
-      owner
-    );
+    try {
+      pairs[token] = await deployPair(
+        mockBUSD,
+        expandTo18Decimals(10000000), // $10,000,000
+        tokens[token].contract,
+        tokens[token].liquidity,
+        pancakeRouter,
+        owner
+      );
+    } catch (err) {
+      console.log(err.message);
+    }
   }
   return { pairs, pancakeRouter, pancakeFactory };
 };

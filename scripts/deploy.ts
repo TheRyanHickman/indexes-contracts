@@ -21,6 +21,8 @@ let addresses: ContractAddresses = {
       WETH: "0x8d0e18c97e5Dd8Ee2B539ae8cD3a3654DF5d79E5",
       BUSD: "0x8301F2213c0eeD49a7E28Ae4c3e91722919B8B47",
       WBNB: "0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c",
+      levbnblp: "TODO",
+      levbusdlp: "TODO",
     },
   },
 };
@@ -48,6 +50,16 @@ const main = async () => {
     const mockWETH = await deployMockToken("Fake WETH", "HTEW", owner.address);
     const mockBTC = await deployMockToken("Fake BTC", "BTCF", owner.address);
     const mockBNB = await deployMockToken("Fake BNB", "BNBF", owner.address);
+    const mockLevbnblp = await deployMockToken(
+      "Fake LEVBNBLP",
+      "FLEVBNBLP",
+      owner.address
+    );
+    const mockLevbusdlp = await deployMockToken(
+      "Fake LEVBUSDLP",
+      "FLEVBUSDLP",
+      owner.address
+    );
     const exchange = await deployPancakeExchange(owner, mockBUSD, mockWETH, {
       BTC: {
         contract: mockBTC,
@@ -71,6 +83,8 @@ const main = async () => {
         BTCB: mockBTC.address,
         WETH: mockWETH.address,
         WBNB: mockBNB.address,
+        levbnblp: mockLevbnblp.address,
+        levbusdlp: mockLevbusdlp.address,
       },
     };
   } else {
@@ -118,13 +132,28 @@ const main = async () => {
     owner
   );
   logPoint();
-  const stakingPool = await deployStakingPool(
+  const stakingPoolLEV = await deployStakingPool(
     utilities.address,
     slev.address,
     lev.address,
+    [lev.address],
     addrs.pancakeRouter
   );
-  await slev.connect(owner).setMinter(stakingPool);
+  const stakingPoolLEVBUSDLP = await deployStakingPool(
+    utilities.address,
+    slev.address,
+    addrs.tokens.levbusdlp,
+    [lev.address],
+    addrs.pancakeRouter
+  );
+  const stakingPoolLEVBNBDLP = await deployStakingPool(
+    utilities.address,
+    slev.address,
+    addrs.tokens.levbnblp,
+    [lev.address],
+    addrs.pancakeRouter
+  );
+  await slev.connect(owner).setMinter(stakingPoolLEV);
   const deployed = {
     utilities: utilities.address,
     slev: slev.address,
@@ -133,7 +162,9 @@ const main = async () => {
     indexController: indexController.address,
     indexInstance: indexInstanceAddress,
     tokenSharing: teamSharing.address,
-    stakingPool: stakingPool,
+    stakingPoolLEV: stakingPoolLEV,
+    stakingPoolLEVBUSDLP,
+    stakingPoolLEVBNBDLP,
     router: addrs.pancakeRouter,
   };
   console.log(deployed);
@@ -192,6 +223,8 @@ type ContractAddresses = Record<
       WETH: string;
       BUSD: string;
       WBNB: string;
+      levbusdlp: string;
+      levbnblp: string;
     };
   }
 >;

@@ -13,14 +13,15 @@ export const getStakingPoolFactory = (putilities: string) => {
 export const deployStakingPool = async (
   pancakeswapUtilities: string,
   SLEV: string,
-  LEV: string,
+  stakeToken: string,
+  rewardTokens: string[],
   router: string
 ) => {
   const stakingFactory = await getStakingPoolFactory(pancakeswapUtilities);
   const stakingPool = await stakingFactory.deploy(
     SLEV,
-    LEV,
-    [LEV],
+    stakeToken,
+    rewardTokens,
     [expandTo18Decimals(1)],
     router
   );

@@ -16,6 +16,7 @@ contract IndexPool is ERC20 {
     ERC20 private immutable _BUSD;
     address[] _underlyingTokens;
     uint256[] _tokenWeights;
+    uint16 WEIGHT_FACTOR = 1000;
     uint8[] _categories;
 
     event Mint(address indexed to, uint256 amount, uint256 cost);
@@ -52,18 +53,18 @@ contract IndexPool is ERC20 {
         emit CompositionChange(underlyingTokens, tokenWeights);
     }
 
-    function mint(uint256 BUSDIn, uint256 minAmountOut) public {
+    function mint(uint256 amountOut, uint256 BUSDIn) public {
         _BUSD.transferFrom(msg.sender, address(this), BUSDIn);
 
         uint256 totalTokensBought = 0;
-        uint256 totalSpent = 0;
+        uint256 totalSpent = _collectFee(BUSDIn);
         for (uint256 i = 0; i < _underlyingTokens.length; i++) {
             (uint256 boughtAmount, uint256 spent) =
                 PancakeswapUtilities.buyToken(
                     address(_BUSD),
                     _underlyingTokens[i],
                     address(this),
-                    minAmountOut * _tokenWeights[i],
+                    (amountOut * _tokenWeights[i]) / WEIGHT_FACTOR,
                     _pancakeRouter
                 );
 
@@ -71,14 +72,13 @@ contract IndexPool is ERC20 {
             totalSpent += spent;
         }
 
-        uint256 amountOut = totalTokensBought / _sum(_tokenWeights);
-        totalSpent += _collectFee(totalSpent);
+        uint256 amountOutResult = (totalTokensBought * WEIGHT_FACTOR) / _sum(_tokenWeights);
 
         // refund the extra BUSD
         _BUSD.transfer(msg.sender, BUSDIn - totalSpent);
 
-        _mint(msg.sender, amountOut);
-        emit Mint(msg.sender, amountOut, totalSpent);
+        _mint(msg.sender, amountOutResult);
+        emit Mint(msg.sender, amountOutResult, totalSpent);
     }
 
     function burn(uint256 amount) public {
@@ -88,7 +88,7 @@ contract IndexPool is ERC20 {
         uint256 amountToPayUser = 0;
 
         for (uint256 i = 0; i < _underlyingTokens.length; i++) {
-            uint256 sellAmount = (amount * _tokenWeights[i]);
+            uint256 sellAmount = (amount * _tokenWeights[i]) / WEIGHT_FACTOR;
             (uint256 amountOut, uint256 amountIn) =
                 PancakeswapUtilities.sellToken(
                     _underlyingTokens[i],
@@ -101,7 +101,7 @@ contract IndexPool is ERC20 {
             totalTokensSold += amountIn;
             amountToPayUser += amountOut;
         }
-        uint256 amountToBurn = totalTokensSold / _sum(_tokenWeights);
+        uint256 amountToBurn = (totalTokensSold * WEIGHT_FACTOR) / _sum(_tokenWeights);
         amountToPayUser -= _collectFee(amountToPayUser);
         _BUSD.transfer(msg.sender, amountToPayUser);
 
@@ -112,7 +112,7 @@ contract IndexPool is ERC20 {
     function getPoolPriceBUSD() public view returns (uint256) {
         uint256 total = 0;
         for (uint256 i = 0; i < _underlyingTokens.length; i++) {
-            total += getTokenPriceBUSD(_underlyingTokens[i]) * _tokenWeights[i];
+            total += (getTokenPriceBUSD(_underlyingTokens[i]) * _tokenWeights[i]) / WEIGHT_FACTOR;
         }
         return total;
     }

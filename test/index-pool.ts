@@ -52,10 +52,6 @@ describe("Index Pool", function () {
 
   it("Swaps BTC for BUSD", async () => {
     const path = [mockBTC.address, mockBUSD.address];
-    const amountsOut = await pancakeRouter.getAmountsOut(
-      expandTo18Decimals(50000),
-      path
-    );
     await mockBTC.approve(pancakeRouter.address, expandTo18Decimals(1));
 
     // selling 1BTC
@@ -73,13 +69,13 @@ describe("Index Pool", function () {
   it("Should buy an index", async () => {
     const pool = await deployMockIndexPool("TNDX");
     const price = await pool.getPoolPriceBUSD();
-    const willingToPay = price.add(expandTo18Decimals(40000));
+    const willingToPay = price.mul(102).div(100);
     await mockBUSD.approve(pool.address, willingToPay);
-    await pool.mint(willingToPay, expandTo18Decimals(1));
+    await pool.mint(expandTo18Decimals(1), willingToPay);
 
     expect(await pool.balanceOf(owner.address)).to.equal(expandTo18Decimals(1));
     const balanceETH = await mockWETH.balanceOf(pool.address);
-    expect(balanceETH).to.equal(expandTo18Decimals(2));
+    expect(balanceETH).to.equal(expandTo18Decimals(2).div(1000));
   });
 
   it("Should burn an index", async () => {
@@ -87,7 +83,7 @@ describe("Index Pool", function () {
     const price = await pool.getPoolPriceBUSD();
     // try to buy 2TNDX
     await mockBUSD.approve(pool.address, price.mul(3));
-    await pool.mint(price.mul(3), expandTo18Decimals(2));
+    await pool.mint(expandTo18Decimals(2), price.mul(3));
 
     const ourBalance = await pool.balanceOf(owner.address);
     await pool.burn(ourBalance);
@@ -116,13 +112,12 @@ describe("Index Pool", function () {
 
     // buy index
     await mockBUSD.approve(pool.address, price.mul(3));
-    const balanceUSDBefore = await mockBUSD.balanceOf(owner.address);
-    await pool.mint(price.mul(3), expandTo18Decimals(2));
-    const balanceUSDAfter = await mockBUSD.balanceOf(owner.address);
-    const spent = balanceUSDBefore.sub(balanceUSDAfter);
-    const mintFees = await mockBUSD.balanceOf(devTeam.address);
+    const devTeamBalanceBefore = await mockBUSD.balanceOf(devTeam.address);
+    await pool.mint(expandTo18Decimals(2), price.mul(3));
+    const devTeamBalanceAfter = await mockBUSD.balanceOf(devTeam.address);
+    const mintFees = devTeamBalanceAfter.sub(devTeamBalanceBefore);
 
-    expect(mintFees).to.equal(spent.sub(mintFees).div(100));
+    expect(mintFees).to.equal(price.mul(3).div(100));
 
     await emptyDevAccount();
     const balanceUSDBeforeBurn = await mockBUSD.balanceOf(owner.address);

@@ -12,5 +12,6 @@ export const deployMockToken = async (
     symbol,
     expandTo18Decimals(100000000) // 100,000,000
   );
+  await contract.deployed();
   return contract;
 };

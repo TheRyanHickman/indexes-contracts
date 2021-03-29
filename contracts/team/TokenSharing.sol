@@ -32,7 +32,7 @@ contract TokenSharing {
     modifier voterOnly() {
         require(
             _shareholdersMap[msg.sender].canVote,
-            "Unauthorized. You have to be a shareholder."
+            "SHARING: NOT_SHAREHOLDER"
         );
         _;
     }
@@ -40,17 +40,17 @@ contract TokenSharing {
     modifier validShareholders(Shareholder[] memory shareholders) {
         require(
             shareholders.length > 0,
-            "At least 1 shareholder is requiered."
+            "SHARING: TOO_FEW_SHAREHOLDERS"
         );
         for (uint256 i = 0; i < shareholders.length; i++) {
             Shareholder memory shareholder = shareholders[i];
             require(
                 shareholder.shares > 0,
-                "Shareholder must have at least 1 share."
+                "SHARING: NOT_ENOUGH_SHARES"
             );
             require(
                 shareholder.wallet != address(0),
-                "Wallet address 0 is not allowed for a shareholder."
+                "SHARING: ERR_ADDRESS_ZERO"
             );
         }
         _;
@@ -64,16 +64,17 @@ contract TokenSharing {
 
     function distributeToken(ERC20 token) public {
         uint256 balance = token.balanceOf(address(this));
+        if (balance == 0)
+            return;
         for (uint256 i = 0; i < _shareholders.length; i++) {
             Shareholder memory shareholder = _shareholders[i];
-            uint256 percentAllowed = shareholder.shares / _totalShares;
-            uint256 amontToTransfer = balance * percentAllowed;
-            token.transferFrom(
-                address(this),
+            uint256 percentAllowed = (shareholder.shares * 1000) / _totalShares;
+            uint256 amountToTransfer = (balance * percentAllowed) / 1000;
+            token.transfer(
                 shareholder.wallet,
-                amontToTransfer
+                amountToTransfer
             );
-            emit Transfer(shareholder, amontToTransfer);
+            emit Transfer(shareholder, amountToTransfer);
         }
     }
 
@@ -84,8 +85,8 @@ contract TokenSharing {
         for (uint256 i = 0; i < _shareholders.length; i++) {
             address wallet = _shareholders[i].wallet;
             delete _shareholdersMap[wallet];
-            delete _shareholders[i];
         }
+        delete _shareholders;
 
         for (uint256 i = 0; i < newShareholders.length; i++) {
             Shareholder memory initialShareholder = newShareholders[i];
@@ -121,7 +122,7 @@ contract TokenSharing {
         return totalShares;
     }
 
-    function isFavorable(Proposal memory proposal) private view returns (bool) {
+    function isFavorable(Proposal memory proposal) public view returns (bool) {
         uint256 favorableShares = 0;
         for (uint256 i = 0; i < proposal.voters.length; i++) {
             address voter = proposal.voters[i];
@@ -134,16 +135,16 @@ contract TokenSharing {
     }
 
     function applyProposal(uint256 proposalId) public voterOnly {
-        require(proposalId < _proposals.length, "Unknow proposal id.");
+        require(proposalId < _proposals.length, "SHARING: UNKNOWN_PROPOSAL_ID");
         Proposal storage proposal = _proposals[proposalId];
-        require(proposal.author != address(0), "Unknow proposal id.");
+        require(proposal.author != address(0), "SHARING: UNKNOWN_PROPOSAL_ID");
         require(
             proposal.date > _proposalDate,
-            "Too old proposal a newer is already applied."
+            "SHARING: PROPOSAL_TOO_OLD"
         );
         require(
             isFavorable(proposal),
-            "The proposal has not been approved yet."
+            "SHARING: PROPOSAL_NOT_APPROVED"
         );
         replaceShareholders(proposal.newShareholders, block.timestamp);
     }
@@ -171,9 +172,9 @@ contract TokenSharing {
 
     function approveProposal(uint256 proposalId) public voterOnly {
         Proposal storage proposal = _proposals[proposalId];
-        require(proposal.author != address(0), "Unknow proposal id.");
+        require(proposal.author != address(0), "SHARING: UNKNOWN_PROPOSAL_ID");
         for (uint256 i = 0; i < proposal.voters.length; i++) {
-            require(proposal.voters[i] != msg.sender, "You already voted");
+            require(proposal.voters[i] != msg.sender, "SHARING: ALREADY_VOTED");
         }
         proposal.voters.push(msg.sender);
     }
@@ -183,10 +184,10 @@ contract TokenSharing {
         returns (Proposal memory)
     {
         Proposal memory proposal = _proposals[proposalId];
-        require(proposal.author != address(0), "Unknow proposal id.");
+        require(proposal.author != address(0), "SHARING: UNKNOWN_PROPOSAL_ID");
         require(
             proposal.author == msg.sender || proposal.date < _proposalDate,
-            "You are not authorized to delete the proposal yet."
+            "SHARING: DELETE_UNAUTHORIZED"
         );
         delete _proposals[proposalId];
         return proposal;
@@ -198,7 +199,7 @@ contract TokenSharing {
         returns (Proposal memory)
     {
         Proposal memory proposal = _proposals[proposalId];
-        require(proposal.author != address(0), "Unknow proposal id.");
+        require(proposal.author != address(0), "SHARING: UNKNOWN_PROPOSAL_ID");
         return proposal;
     }
 

@@ -129,6 +129,7 @@ const main = async () => {
     utilities: utilities.address,
     slev: slev.address,
     lev: lev.address,
+    busd: mockBUSD.address,
     indexController: indexController.address,
     indexInstance: indexInstanceAddress,
     tokenSharing: teamSharing.address,
@@ -169,7 +170,7 @@ const deployTeamSharing = async (owner: string) => {
 };
 
 const logPoint = () => {
-  process.stderr.write(".");
+  process.stdout.write(".");
 };
 
 // We recommend this pattern to be able to use async/await everywhere

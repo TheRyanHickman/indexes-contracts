@@ -177,7 +177,6 @@ contract LEVStackingPool {
         view
         returns (uint)
     {
-        Stacker storage stacker = _stackers[wallet];
         uint totalRewardSLEV = getCurrentRewardSLEV(wallet, token);
         if (totalRewardSLEV == 0)
             return 0;

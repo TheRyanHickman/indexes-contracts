@@ -68,11 +68,13 @@ describe("Index Pool", function () {
 
   it("Should buy an index", async () => {
     const pool = await deployMockIndexPool("TNDX");
-    const price = await pool.getPoolPriceBUSD();
-    const willingToPay = price.mul(102).div(100);
-    await mockBUSD.approve(pool.address, willingToPay);
-    await pool.mint(expandTo18Decimals(1), willingToPay);
+    const quote = await pool.getIndexQuoteWithFee(expandTo18Decimals(1));
+    await mockBUSD.approve(pool.address, quote);
+    const balanceBefore = await mockBUSD.balanceOf(owner.address);
+    await pool.buyExactIndexAmount(expandTo18Decimals(1), quote);
+    const balanceAftr = await mockBUSD.balanceOf(owner.address);
 
+    expect(balanceBefore.sub(balanceAftr)).to.equal(quote);
     expect(await pool.balanceOf(owner.address)).to.equal(expandTo18Decimals(1));
     const balanceETH = await mockWETH.balanceOf(pool.address);
     expect(balanceETH).to.equal(expandTo18Decimals(2).div(1000));
@@ -80,13 +82,13 @@ describe("Index Pool", function () {
 
   it("Should burn an index", async () => {
     const pool = await deployMockIndexPool("TNDX");
-    const price = await pool.getPoolPriceBUSD();
+    const price = await pool.getIndexQuoteWithFee(expandTo18Decimals(2));
     // try to buy 2TNDX
-    await mockBUSD.approve(pool.address, price.mul(3));
-    await pool.mint(expandTo18Decimals(2), price.mul(3));
+    await mockBUSD.approve(pool.address, price);
+    await pool.buyExactIndexAmount(expandTo18Decimals(2), price);
 
     const ourBalance = await pool.balanceOf(owner.address);
-    await pool.burn(ourBalance);
+    await pool.sellIndex(ourBalance, price.mul(95).div(100));
     const ourNewBalance = await pool.balanceOf(owner.address);
     expect(ourNewBalance).to.equal(ethers.constants.Zero);
     const poolETHBalance = await mockWETH.balanceOf(pool.address);
@@ -94,11 +96,11 @@ describe("Index Pool", function () {
     expect(await mockBTC.balanceOf(pool.address)).to.equal(
       ethers.constants.Zero
     );
+    // TODO: check USD balance
   });
 
   it("Collect fees on trades", async () => {
     const pool = await deployMockIndexPool("TNDX");
-    const price = await pool.getPoolPriceBUSD();
 
     const emptyDevAccount = async () => {
       const devTeamBalance = await mockBUSD.balanceOf(devTeam.address);
@@ -111,23 +113,17 @@ describe("Index Pool", function () {
     );
 
     // buy index
-    await mockBUSD.approve(pool.address, price.mul(3));
+    const price = await pool.getIndexQuoteWithFee(expandTo18Decimals(2));
+    await mockBUSD.approve(pool.address, price);
     const devTeamBalanceBefore = await mockBUSD.balanceOf(devTeam.address);
-    await pool.mint(expandTo18Decimals(2), price.mul(3));
+    const priceWOFee = await pool.getIndexQuote(expandTo18Decimals(2));
+    await pool.buyExactIndexAmount(expandTo18Decimals(2), price);
     const devTeamBalanceAfter = await mockBUSD.balanceOf(devTeam.address);
     const mintFees = devTeamBalanceAfter.sub(devTeamBalanceBefore);
+    expect(mintFees).to.equal(priceWOFee.div(100));
 
-    expect(mintFees).to.equal(price.mul(3).div(100));
-
-    await emptyDevAccount();
-    const balanceUSDBeforeBurn = await mockBUSD.balanceOf(owner.address);
     // burn half of what we have
-    await pool.burn(expandTo18Decimals(1));
-    const burnFees = await mockBUSD.balanceOf(devTeam.address);
-    const balanceUSDAfterBurn = await mockBUSD.balanceOf(owner.address);
-    const earnedForBurn = balanceUSDAfterBurn.sub(balanceUSDBeforeBurn);
-
-    expect(burnFees).to.equal(earnedForBurn.add(burnFees).div(100));
+    await pool.sellIndex(expandTo18Decimals(1), price.mul(48).div(100));
   });
 
   const deployMockIndexPool = async (symbol: string) => {

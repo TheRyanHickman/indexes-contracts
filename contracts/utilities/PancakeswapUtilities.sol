@@ -26,43 +26,18 @@ library PancakeswapUtilities {
             )))));
     }
 
-    function getAmountOut(
-        uint256 amountIn,
-        uint256 reserveIn,
-        uint256 reserveOut
-    ) public pure returns (uint256 amountOut) {
-        require(amountIn > 0, "UniswapV2Library: INSUFFICIENT_INPUT_AMOUNT");
-        require(
-            reserveIn > 0 && reserveOut > 0,
-            "UniswapV2Library: INSUFFICIENT_LIQUIDITY"
-        );
-        uint256 amountInWithFee = amountIn * 997;
-        uint256 numerator = amountInWithFee * reserveOut;
-        uint256 denominator = reserveIn * 1000 + amountInWithFee;
-        amountOut = numerator / denominator;
-    }
-
-       // given an output amount of an asset and pair reserves, returns a required input amount of the other asset
-    function getAmountIn(uint amountOut, uint reserveIn, uint reserveOut) internal pure returns (uint amountIn) {
-        require(amountOut > 0, 'UniswapV2Library: INSUFFICIENT_OUTPUT_AMOUNT');
-        require(reserveIn > 0 && reserveOut > 0, 'UniswapV2Library: INSUFFICIENT_LIQUIDITY');
-        uint numerator = reserveIn * amountOut;
-        uint denominator = reserveOut - amountOut;
-        amountIn = numerator / denominator + 1;
-    }
-
-
     function buyToken(address tokenToSpend, address tokenToBuy, address account, uint256 amountOut, IUniswapV2Router02 pancakeRouter) public returns(uint256, uint256) {
       IUniswapV2Pair pair = _getPair(tokenToSpend, tokenToBuy, pancakeRouter.factory());
       (uint reservesA, uint reservesB) = getReservesOrdered(pair, tokenToSpend, tokenToBuy);
-      uint amountInMax = (getAmountIn(amountOut, reservesA, reservesB) * 1020) / 1000;
-      IBEP20(tokenToSpend).approve(address(pancakeRouter), amountInMax);
+      uint amountInMin = pancakeRouter.getAmountIn(amountOut, reservesA, reservesB);
+      IBEP20(tokenToSpend).approve(address(pancakeRouter), amountInMin);
       address[] memory path = new address[](2);
       path[0] = tokenToSpend;
       path[1] = tokenToBuy;
+
       uint[] memory amounts = pancakeRouter.swapTokensForExactTokens(
           amountOut,
-          amountInMax,
+          amountInMin,
           path,
           account,
           block.timestamp + 60

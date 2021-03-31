@@ -9,7 +9,6 @@ import "hardhat/console.sol";
 import "contracts/utilities/PancakeswapUtilities.sol";
 
 contract IndexPool is ERC20 {
-    uint256 constant POOL_FEES = 1e16; // 1% fees
     address private immutable _indexController;
     IUniswapV2Router02 private _pancakeRouter;
     IUniswapV2Factory private _pancakeFactory;
@@ -53,36 +52,50 @@ contract IndexPool is ERC20 {
         emit CompositionChange(underlyingTokens, tokenWeights);
     }
 
-    function mint(uint256 amountOut, uint256 BUSDIn) public {
-        _BUSD.transferFrom(msg.sender, address(this), BUSDIn);
+    function buyExactIndexAmount(uint amountOut, uint amountInMax) external {
+        uint quote = getIndexQuoteWithFee(amountOut);
+        require(quote <= amountInMax, "IndexPool: INSUFFICIENT_AMOUNT_IN_MAX");
+        return _mint(amountOut, quote);
+    }
+
+    function buyIndexForExactTokens(uint amountIn, uint amountOutMin) external {
+    }
+
+    function _mint(uint256 amountOut, uint256 amountIn) private {
+        _BUSD.transferFrom(msg.sender, address(this), amountIn);
 
         uint256 totalTokensBought = 0;
-        uint256 totalSpent = _collectFee(BUSDIn);
+        uint totalSpent = 0;
         for (uint256 i = 0; i < _underlyingTokens.length; i++) {
+            uint purchaseAmount = (amountOut * _tokenWeights[i]) / WEIGHT_FACTOR;
             (uint256 boughtAmount, uint256 spent) =
                 PancakeswapUtilities.buyToken(
                     address(_BUSD),
                     _underlyingTokens[i],
                     address(this),
-                    (amountOut * _tokenWeights[i]) / WEIGHT_FACTOR,
+                    purchaseAmount,
                     _pancakeRouter
                 );
-
             totalTokensBought += boughtAmount;
             totalSpent += spent;
         }
 
         uint256 amountOutResult = (totalTokensBought * WEIGHT_FACTOR) / _sum(_tokenWeights);
 
-        // refund the extra BUSD
-        _BUSD.transfer(msg.sender, BUSDIn - totalSpent);
-
+        uint remainingBUSD = amountIn - totalSpent;
+        require(remainingBUSD == getFee(totalSpent), "INCORRECT_REMAINING_BUSD");
+        _collectFee(remainingBUSD);
         _mint(msg.sender, amountOutResult);
         emit Mint(msg.sender, amountOutResult, totalSpent);
     }
 
-    function burn(uint256 amount) public {
-        require(amount <= balanceOf(msg.sender), "Insufficient balance");
+    function sellIndex(uint amountIn, uint amountOutMin) external {
+        uint amountOut = burn(amountIn);
+        require(amountOut >= amountOutMin, "IndexPool: AMOUNT_OUT_TOO_LOW");
+    }
+
+    function burn(uint256 amount) private returns(uint) {
+        require(amount <= balanceOf(msg.sender), "IndexPool: INSUFFICIENT_BALANCE");
 
         uint256 totalTokensSold = 0;
         uint256 amountToPayUser = 0;
@@ -102,22 +115,35 @@ contract IndexPool is ERC20 {
             amountToPayUser += amountOut;
         }
         uint256 amountToBurn = (totalTokensSold * WEIGHT_FACTOR) / _sum(_tokenWeights);
-        amountToPayUser -= _collectFee(amountToPayUser);
+        uint fee = getFee(amountToPayUser);
+        _collectFee(fee);
+        amountToPayUser -= fee;
         _BUSD.transfer(msg.sender, amountToPayUser);
 
         _burn(msg.sender, amountToBurn);
         emit Burn(msg.sender, amountToBurn, amountToPayUser);
+        return amountToPayUser;
     }
 
-    function getPoolPriceBUSD() public view returns (uint256) {
+    function getIndexQuote(uint amount) public view returns (uint256) {
         uint256 total = 0;
         for (uint256 i = 0; i < _underlyingTokens.length; i++) {
-            total += (getTokenPriceBUSD(_underlyingTokens[i]) * _tokenWeights[i]) / WEIGHT_FACTOR;
+            uint tokenBuyAmount = (_tokenWeights[i] * amount) / WEIGHT_FACTOR;
+            total += getTokenQuote(_underlyingTokens[i], tokenBuyAmount);
         }
         return total;
     }
 
-    function getTokenPriceBUSD(address token) public view returns (uint256) {
+    function getIndexQuoteWithFee(uint amount) public view returns (uint256) {
+        uint price = getIndexQuote(amount);
+        return price + getFee(price);
+    }
+
+    function getFee(uint amount) public pure returns (uint) {
+        return amount / 100; // 1% fee
+    }
+
+    function getTokenQuote(address token, uint amount) public view returns (uint256) {
         address pairBUSDAddr = _pancakeFactory.getPair(address(_BUSD), token);
         require(pairBUSDAddr != address(0), "Cannot find pair BUSD-token");
         IUniswapV2Pair pairBUSD = IUniswapV2Pair(pairBUSDAddr);
@@ -127,7 +153,7 @@ contract IndexPool is ERC20 {
                 address(_BUSD),
                 token
             );
-        return _pancakeRouter.quote(1e18, reserveToken, reserveBUSD);
+        return _pancakeRouter.getAmountIn(amount, reserveBUSD, reserveToken);
     }
 
     function getComposition()
@@ -146,9 +172,7 @@ contract IndexPool is ERC20 {
         return total;
     }
 
-    function _collectFee(uint256 amount) private returns (uint256) {
-        uint256 fee = (amount * POOL_FEES) / 1e18;
-        _BUSD.transfer(_indexController, fee);
-        return fee;
+    function _collectFee(uint256 amount) private {
+        _BUSD.transfer(_indexController, amount);
     }
 }

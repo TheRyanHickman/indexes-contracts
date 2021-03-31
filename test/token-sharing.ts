@@ -56,6 +56,7 @@ describe("Token Sharing", function () {
     }
     expect(errMsg.endsWith("SHARING: UNKNOWN_PROPOSAL_ID")).to.be.true;
 
+    await tokenSharing.approveProposal(0);
     await tokenSharing.applyProposal(0);
     const shareholders = await tokenSharing.getShareholders();
     expect(shareholders.length).to.equal(3);
@@ -71,6 +72,7 @@ describe("Token Sharing", function () {
       shareholder(30, other.address),
       shareholder(40, other2.address),
     ]);
+    await tokenSharing.approveProposal(0);
     await tokenSharing.applyProposal(0);
     await tokenSharing
       .connect(other2)
@@ -86,7 +88,9 @@ describe("Token Sharing", function () {
       errMsg = err.message;
     }
     expect(errMsg.endsWith("PROPOSAL_NOT_APPROVED")).to.be.true;
+    await tokenSharing.approveProposal(1);
     await tokenSharing.connect(other).approveProposal(1);
+    await tokenSharing.connect(other2).approveProposal(1);
     await tokenSharing.applyProposal(1);
     const shareholders = await tokenSharing.getShareholders();
     expect(shareholders[1].shares).to.equal(601);
@@ -101,6 +105,7 @@ describe("Token Sharing", function () {
       shareholder(20, other.address),
       shareholder(10, other2.address),
     ]);
+    await tokenSharing.approveProposal(0);
     await tokenSharing.applyProposal(0);
     await mockLEV.transfer(tokenSharing.address, expandTo18Decimals(40));
     await mockBUSD.transfer(tokenSharing.address, expandTo18Decimals(100));

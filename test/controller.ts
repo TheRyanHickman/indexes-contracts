@@ -64,7 +64,7 @@ describe("Pool Controller", function () {
     const poolAddress = await controllerContract.pools(0);
     const pool = new Contract(poolAddress, poolAbi.abi, owner);
 
-    const price = await pool.getPoolPriceBUSD();
-    expect(price).to.equal(BigNumber.from("194000000000000000000000"));
+    const price = await pool.getIndexQuote(expandTo18Decimals(1));
+    expect(price).to.equal(BigNumber.from("194586202241326328994"));
   });
 });

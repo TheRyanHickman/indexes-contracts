@@ -38,16 +38,10 @@ contract TokenSharing {
     }
 
     modifier validShareholders(Shareholder[] memory shareholders) {
-        require(
-            shareholders.length > 0,
-            "SHARING: TOO_FEW_SHAREHOLDERS"
-        );
+        require(shareholders.length > 0, "SHARING: TOO_FEW_SHAREHOLDERS");
         for (uint256 i = 0; i < shareholders.length; i++) {
             Shareholder memory shareholder = shareholders[i];
-            require(
-                shareholder.shares > 0,
-                "SHARING: NOT_ENOUGH_SHARES"
-            );
+            require(shareholder.shares > 0, "SHARING: NOT_ENOUGH_SHARES");
             require(
                 shareholder.wallet != address(0),
                 "SHARING: ERR_ADDRESS_ZERO"
@@ -64,16 +58,12 @@ contract TokenSharing {
 
     function distributeToken(ERC20 token) public {
         uint256 balance = token.balanceOf(address(this));
-        if (balance == 0)
-            return;
+        if (balance == 0) return;
         for (uint256 i = 0; i < _shareholders.length; i++) {
             Shareholder memory shareholder = _shareholders[i];
             uint256 percentAllowed = (shareholder.shares * 1000) / _totalShares;
             uint256 amountToTransfer = (balance * percentAllowed) / 1000;
-            token.transfer(
-                shareholder.wallet,
-                amountToTransfer
-            );
+            token.transfer(shareholder.wallet, amountToTransfer);
             emit Transfer(shareholder, amountToTransfer);
         }
     }
@@ -138,14 +128,8 @@ contract TokenSharing {
         require(proposalId < _proposals.length, "SHARING: UNKNOWN_PROPOSAL_ID");
         Proposal storage proposal = _proposals[proposalId];
         require(proposal.author != address(0), "SHARING: UNKNOWN_PROPOSAL_ID");
-        require(
-            proposal.date > _proposalDate,
-            "SHARING: PROPOSAL_TOO_OLD"
-        );
-        require(
-            isFavorable(proposal),
-            "SHARING: PROPOSAL_NOT_APPROVED"
-        );
+        require(proposal.date > _proposalDate, "SHARING: PROPOSAL_TOO_OLD");
+        require(isFavorable(proposal), "SHARING: PROPOSAL_NOT_APPROVED");
         replaceShareholders(proposal.newShareholders, block.timestamp);
     }
 
@@ -165,7 +149,6 @@ contract TokenSharing {
             Shareholder memory newShareholder = newShareholders[i];
             proposal.newShareholders.push(newShareholder);
         }
-        approveProposal(proposalIndex);
         emit NewProposal(proposal);
         return proposalIndex;
     }

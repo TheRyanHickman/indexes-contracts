@@ -17,20 +17,18 @@ describe("LEV token", function () {
   let LEV: Contract,
     mockSLEV: Contract,
     mockBUSD: Contract,
-    mockWETH: Contract,
     pancakeRouter: Contract;
 
   before(async () => {
     [owner] = await ethers.getSigners();
     mockSLEV = await deployMockToken("Fake SLEV", "VELS", owner.address);
     mockBUSD = await deployMockToken("Fake BUSD", "DSUB", owner.address);
-    mockWETH = await deployMockToken("Fake WETH", "HTEW", owner.address);
-    const exchange = await deployPancakeExchange(owner, mockBUSD, mockWETH);
+    const exchange = await deployPancakeExchange(owner);
     pancakeRouter = exchange.pancakeRouter;
   });
 
   beforeEach(async () => {
-    const pancakeswapUtilities = await deployPancakeUtilities();
+    const pancakeswapUtilities = (await deployPancakeUtilities()) as Contract;
     const LevFactory = await ethers.getContractFactory("LEVToken", {
       libraries: {
         PancakeswapUtilities: pancakeswapUtilities.address,

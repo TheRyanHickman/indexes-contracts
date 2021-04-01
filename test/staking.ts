@@ -20,16 +20,14 @@ describe("Stacking pools", function () {
     SLEV: Contract,
     mockLEV: Contract,
     mockBUSD: Contract,
-    mockWETH: Contract,
     pancakeRouter: Contract;
 
   before(async () => {
     [owner] = await ethers.getSigners();
-    SLEV = await deploySLEV(owner.address);
+    SLEV = (await deploySLEV(owner.address)) as Contract;
     mockLEV = await deployMockToken("Fake LEV", "VEL", owner.address);
     mockBUSD = await deployMockToken("Fake BUSD", "DSUB", owner.address);
-    mockWETH = await deployMockToken("Fake WETH", "HTEW", owner.address);
-    const exchange = await deployPancakeExchange(owner, mockBUSD, mockWETH);
+    const exchange = await deployPancakeExchange(owner);
     pancakeRouter = exchange.pancakeRouter;
     await deployPair(
       mockLEV,
@@ -40,7 +38,7 @@ describe("Stacking pools", function () {
       owner
     );
 
-    const pancakeswapUtilities = await deployPancakeUtilities();
+    const pancakeswapUtilities = (await deployPancakeUtilities()) as Contract;
     const StackingPoolFactory = await ethers.getContractFactory(
       "LEVStackingPool",
       {

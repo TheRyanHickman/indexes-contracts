@@ -19,11 +19,6 @@ contract SLEVToken is ERC20, IMintable, IBurnable {
         _mint(owner, initialSupply);
     }
 
-    //     address SLEV,
-    // address[] memory rewardTokens,
-    // uint256[] memory SLEVPerBlock,
-    // address[] memory lp
-
     modifier minterOnly {
         require(_minter == msg.sender, "SLEV: NOT_MINTER");
         _;

@@ -26,7 +26,7 @@ describe("Pool Controller", function () {
     mockBUSD = await deployMockToken("Fake BUSD", "DSUB", owner.address);
     mockBTC = await deployMockToken("Fake BTC", "CTB", owner.address);
     mockWETH = await deployMockToken("Fake WETH", "HTEW", owner.address);
-    const exchange = await deployPancakeExchange(owner, mockBUSD, mockWETH, {
+    const exchange = await deployPancakeExchange(owner, {
       WETH: {
         contract: mockWETH,
         liquidity: expandTo18Decimals(5000),
@@ -40,7 +40,7 @@ describe("Pool Controller", function () {
   });
 
   it("Instantiates an Index Pool", async () => {
-    const pancakeswapUtilities = await deployPancakeUtilities();
+    const pancakeswapUtilities = (await deployPancakeUtilities()) as Contract;
     const Controller = await ethers.getContractFactory("IndexController", {
       libraries: {
         PancakeswapUtilities: pancakeswapUtilities.address,
@@ -57,7 +57,7 @@ describe("Pool Controller", function () {
       "Test INDX",
       "TNDX",
       [mockBTC.address, mockWETH.address],
-      [3, 22],
+      [30, 220],
       [0]
     );
     await controllerContract.deployed();
@@ -65,6 +65,6 @@ describe("Pool Controller", function () {
     const pool = new Contract(poolAddress, poolAbi.abi, owner);
 
     const price = await pool.getIndexQuote(expandTo18Decimals(1));
-    expect(price).to.equal(BigNumber.from("194586202241326328994"));
+    expect(price).to.equal(BigNumber.from("97304132126727219"));
   });
 });

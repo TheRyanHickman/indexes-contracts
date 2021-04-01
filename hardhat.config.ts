@@ -7,7 +7,15 @@ import "@nomiclabs/hardhat-waffle";
  * @type import('hardhat/config').HardhatUserConfig
  */
 export default {
-  solidity: "0.8.2",
+  solidity: {
+    version: "0.8.2",
+    settings: {
+      optimizer: {
+        enabled: true,
+        runs: 200,
+      },
+    },
+  },
   networks: {
     ropsten: {
       url:
@@ -29,6 +37,15 @@ export default {
       accounts: [
         "0xdf57089febbacf7ba0bc227dafbffa9fc08a93fdc68e1e42411a14efcf23656e",
       ],
+    },
+    mainnet: {
+      url: "https://bsc-dataseed.binance.org/",
+      chainId: 56,
+      accounts: [
+        process.env.BSC_WALLET_KEY ||
+          "0xdf57089febbacf7ba0bc227dafbffa9fc08a93fdc68e1e42411a14efcf23656e",
+      ],
+      gasPrice: 10000000000,
     },
     hardhat: {
       mining: {

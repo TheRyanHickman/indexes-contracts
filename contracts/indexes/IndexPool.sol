@@ -138,9 +138,9 @@ contract IndexPool is ERC20 {
         _collectFee(fee);
         amountToPayUser -= fee;
         _WBNB.withdraw(amountToPayUser);
+        _burn(msg.sender, amountToBurn);
         (bool sent,) = msg.sender.call{ value: amountToPayUser }("");
         require(sent, "IndexPool: SEND_BNB_FAIL");
-        _burn(msg.sender, amountToBurn);
         emit Burn(msg.sender, amountToBurn, amountToPayUser);
         return amountToPayUser;
     }

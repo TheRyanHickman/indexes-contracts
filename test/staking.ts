@@ -16,7 +16,8 @@ import { expect } from "chai";
 describe("Stacking pools", function () {
   let owner: SignerWithAddress, devTeam: SignerWithAddress;
   let LEV: Contract,
-    stackingPool: Contract,
+    levPair: Contract,
+    stackingPoolLev: Contract,
     SLEV: Contract,
     mockLEV: Contract,
     mockBUSD: Contract,
@@ -29,7 +30,7 @@ describe("Stacking pools", function () {
     mockBUSD = await deployMockToken("Fake BUSD", "DSUB", owner.address);
     const exchange = await deployPancakeExchange(owner);
     pancakeRouter = exchange.pancakeRouter;
-    await deployPair(
+    levPair = await deployPair(
       mockLEV,
       expandTo18Decimals(100000),
       SLEV,
@@ -47,66 +48,102 @@ describe("Stacking pools", function () {
         },
       }
     );
-    stackingPool = await StackingPoolFactory.deploy(
+    stackingPoolLev = await StackingPoolFactory.deploy(
       SLEV.address,
       mockLEV.address,
+      ethers.constants.AddressZero,
       [mockLEV.address],
       [expandTo18Decimals(1)],
       pancakeRouter.address
     );
-    await SLEV.setMinter(stackingPool.address);
+    await SLEV.setMinter(stackingPoolLev.address);
   });
 
   it("Should returns 0 to stacking rewards", async () => {
-    const rewards = await stackingPool.getCurrentRewards(
+    const rewards = await stackingPoolLev.getCurrentRewards(
       owner.address,
       mockLEV.address
     );
     expect(rewards).to.equal(ethers.constants.Zero);
-    expect(await stackingPool.getStackedAmount()).to.equal(
+    expect(await stackingPoolLev.getStackedAmount()).to.equal(
       ethers.constants.Zero
     );
   });
 
   it("Generates rewards in SLEV", async () => {
     const balanceLEVBefore = await mockLEV.balanceOf(owner.address);
-    await mockLEV.approve(stackingPool.address, expandTo18Decimals(20));
-    await stackingPool.stack(expandTo18Decimals(20));
+    await mockLEV.approve(stackingPoolLev.address, expandTo18Decimals(20));
+    await stackingPoolLev.stack(expandTo18Decimals(20));
     expect(await mockLEV.balanceOf(owner.address)).to.equal(
       balanceLEVBefore.sub(expandTo18Decimals(20))
     );
-    expect(await stackingPool.getStackedAmount()).to.equal(
+    expect(await stackingPoolLev.getStackedAmount()).to.equal(
       expandTo18Decimals(20)
     );
     await mineBlock(owner.provider);
     await mineBlock(owner.provider);
 
-    await mockLEV.approve(stackingPool.address, expandTo18Decimals(1));
-    await stackingPool.stack(expandTo18Decimals(1));
+    await mockLEV.approve(stackingPoolLev.address, expandTo18Decimals(1));
+    await stackingPoolLev.stack(expandTo18Decimals(1));
     await mineBlock(owner.provider);
-    expect(await stackingPool.getStackedAmount()).to.equal(
+    expect(await stackingPoolLev.getStackedAmount()).to.equal(
       expandTo18Decimals(21)
     );
     expect(
-      await stackingPool.getCurrentRewards(owner.address, mockLEV.address)
+      await stackingPoolLev.getCurrentRewards(owner.address, mockLEV.address)
     ).to.equal(expandTo18Decimals(1050));
   });
 
   it("Gets rewarded with LEV", async () => {
-    await mockLEV.approve(stackingPool.address, expandTo18Decimals(20));
-    await stackingPool.stack(expandTo18Decimals(12));
+    await mockLEV.approve(stackingPoolLev.address, expandTo18Decimals(20));
+    await stackingPoolLev.stack(expandTo18Decimals(12));
     await mineBlock(owner.provider);
     await mineBlock(owner.provider);
     await mineBlock(owner.provider);
     const balanceLEVBefore = await mockLEV.balanceOf(owner.address);
-    const availableRewards = await stackingPool.getCurrentRewards(
+    const availableRewards = await stackingPoolLev.getCurrentRewards(
       owner.address,
       mockLEV.address
     );
-    await stackingPool.collectAllRewards();
+    await stackingPoolLev.collectAllRewards();
     const balanceLEVAfter = await mockLEV.balanceOf(owner.address);
     const difference = balanceLEVAfter.sub(balanceLEVBefore);
     expect(difference).to.equal(BigNumber.from("3044922680749714830878"));
     expect(availableRewards).to.equal(BigNumber.from("2820000000000000000000"));
+  });
+
+  it("Stacks LP tokens", async () => {
+    const pancakeswapUtilities = (await deployPancakeUtilities()) as Contract;
+    const StackingPoolFactory = await ethers.getContractFactory(
+      "LEVStackingPool",
+      {
+        libraries: {
+          PancakeswapUtilities: pancakeswapUtilities.address,
+        },
+      }
+    );
+    const stackingPoolLP = await StackingPoolFactory.deploy(
+      SLEV.address,
+      levPair.address,
+      levPair.address,
+      [mockLEV.address],
+      [expandTo18Decimals(1)],
+      pancakeRouter.address
+    );
+    await levPair.approve(stackingPoolLP.address, expandTo18Decimals(2));
+    await stackingPoolLP.stack(expandTo18Decimals(2));
+    await mineBlock(owner.provider);
+    await mineBlock(owner.provider);
+    await mineBlock(owner.provider);
+    const balanceLEVBefore = await mockLEV.balanceOf(owner.address);
+    const availableRewards = await stackingPoolLev.getCurrentRewards(
+      owner.address,
+      mockLEV.address
+    );
+    await stackingPoolLev.collectAllRewards();
+    const balanceLEVAfter = await mockLEV.balanceOf(owner.address);
+    const difference = balanceLEVAfter.sub(balanceLEVBefore);
+    expect(difference).to.equal(BigNumber.from("2412445661027390372622"));
+    expect(availableRewards).to.equal(BigNumber.from("2171267364105362663506"));
   });
 });

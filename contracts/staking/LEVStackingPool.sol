@@ -11,16 +11,18 @@ import "contracts/utilities/PancakeswapUtilities.sol";
 
 contract LEVStackingPool {
     uint256 _totalStacked;
-    SLEVToken _SLEV;
-    IBEP20 _stakeToken;
+    SLEVToken immutable _SLEV;
+    IBEP20 immutable _stakeToken;
     RewardTokenInfo[] _rewardTokens;
-    IUniswapV2Router02 _router;
+    IUniswapV2Router02 immutable _router;
+    IUniswapV2Pair immutable _pair; // to stack an LP token
     mapping(address => Stacker) _stackers;
     mapping(address => RewardTokenInfo) _rewardTokenMap;
 
     constructor(
         address SLEV,
         address stakeToken,
+        address pair,
         address[] memory rewardTokens,
         uint256[] memory SLEVPerBlock,
         IUniswapV2Router02 router
@@ -32,6 +34,7 @@ contract LEVStackingPool {
         _SLEV = SLEVToken(SLEV);
         _router = router;
         _stakeToken = IBEP20(stakeToken);
+        _pair = IUniswapV2Pair(pair);
         for (uint256 i = 0; i < rewardTokens.length; i++) {
             address rewardTokenAddress = rewardTokens[i];
             ERC20 rewardToken = ERC20(rewardTokenAddress);
@@ -79,8 +82,15 @@ contract LEVStackingPool {
           return 0;
         RewardTokenInfo storage tokenInfo = _rewardTokenMap[token];
         uint256 SLEVPerBlock = tokenInfo.SLEVPerBlock;
+        uint valueInToken = stacker.stackedAmount;
+        if (address(_pair) != address(0)) {
+            bool isStackedToken0 = _pair.token0() == token;
+            (uint reserve0, uint reserve1,) = _pair.getReserves();
+            uint reserve = isStackedToken0 ? reserve0 : reserve1;
+            valueInToken = (stacker.stackedAmount * _pair.balanceOf(msg.sender) * reserve) / (_pair.totalSupply() * 1e18);
+        }
         uint256 blockRewards = (blockNumber - stacker.lastUpdateBlock) * SLEVPerBlock;
-        return stacker.rewards[tokenInfo.index] + (blockRewards * stacker.stackedAmount) / 1e18;
+        return stacker.rewards[tokenInfo.index] + (blockRewards * valueInToken) / 1e18;
     }
 
     function updateRewards(Stacker storage stacker, uint256 blockNumber)

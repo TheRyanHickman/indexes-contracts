@@ -275,13 +275,27 @@ describe("Index Pool", function () {
     expect(await pool.balanceOf(owner.address)).to.equal(expandTo18Decimals(2));
   });
 
-  const deployMockIndexPool = async (symbol: string) => {
+  it("Rebalances an index with new weights", async () => {
+    const pool = await deployMockIndexPool("TNDX", [10, 11, 8]);
+    const quote = await pool.getIndexQuoteWithFee(expandTo18Decimals(11));
+    await pool.buyExactIndexAmount(expandTo18Decimals(11), {
+      value: quote,
+    });
+    await pool.changeWeights([9, 7, 18]);
+    const poolWBNBBalance = await WBNB.balanceOf(pool.address);
+    await pool.sellIndex(
+      expandTo18Decimals(10),
+      quote.sub(poolWBNBBalance).mul(96).div(100)
+    );
+  });
+
+  const deployMockIndexPool = async (symbol: string, weights = [2, 1, 3]) => {
     pancakeswapUtilities = (await deployPancakeUtilities()) as Contract;
     const tx = await indexController.createIndexPool(
       "hello world pool",
       symbol,
       [mockWETH.address, mockBTC.address, WBNB.address],
-      [2, 1, 3],
+      weights,
       [0]
     );
     const receipt = await tx.wait();

@@ -204,4 +204,47 @@ contract IndexPool is ERC20 {
         _WBNB.transfer(_indexController, amount);
         IndexController(_indexController).redistributeFees();
     }
+
+    function changeWeights(uint16[] memory weights) external {
+        int quoteBefore = int(getIndexQuote(1e18));
+        uint totalSale = 0;
+        for (uint i = 0; i < weights.length; i++) {
+            if (weights[i] < _tokenWeights[i]) {
+                uint sellAmount = (totalSupply() * uint(_tokenWeights[i] - weights[i])) / WEIGHT_FACTOR;
+                if (_underlyingTokens[i] != address(_WBNB))
+                    PancakeswapUtilities.sellToken(
+                        _underlyingTokens[i],
+                        address(_WBNB),
+                        address(this),
+                        sellAmount,
+                        _pancakeRouter
+                    );
+                totalSale += sellAmount;
+           }
+        }
+        uint totalSpent = 0;
+        for (uint i = 0; i < weights.length; i++) {
+            if (weights[i] > _tokenWeights[i]) {
+                uint256 buyAmount = (totalSupply() * uint(weights[i] - _tokenWeights[i])) / WEIGHT_FACTOR;
+                if (_underlyingTokens[i] == address(_WBNB)) {
+                    totalSpent += buyAmount;
+                    continue;
+                }
+                PancakeswapUtilities.buyToken(
+                    _underlyingTokens[i],
+                    address(_WBNB),
+                    address(this),
+                    buyAmount,
+                    _pancakeRouter
+                );
+                totalSpent += buyAmount; 
+            }
+        }
+        _tokenWeights = weights;
+        int quoteAfter = int(getIndexQuote(1e18));
+        require(
+            quoteBefore - quoteAfter > 0 && quoteBefore - quoteAfter < quoteBefore / 50,
+            "IndexPool: PRICE_LOSS_TOO_HIGH"
+        );
+    }
 }

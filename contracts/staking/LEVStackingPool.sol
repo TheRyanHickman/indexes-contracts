@@ -10,10 +10,10 @@ import "contracts/tokens/LEVToken.sol";
 import "contracts/utilities/PancakeswapUtilities.sol";
 
 contract LEVStackingPool {
-    uint256 _totalStacked;
+    uint256 public totalStaked;
     SLEVToken immutable _SLEV;
     IBEP20 immutable _stakeToken;
-    RewardTokenInfo[] _rewardTokens;
+    RewardTokenInfo[] public _rewardTokens;
     IUniswapV2Router02 immutable _router;
     IUniswapV2Pair immutable _pair; // to stack an LP token
     mapping(address => Stacker) _stackers;
@@ -89,7 +89,7 @@ contract LEVStackingPool {
             uint reserve = isStackedToken0 ? reserve0 : reserve1;
             valueInToken = (stacker.stackedAmount * _pair.balanceOf(msg.sender) * reserve) / (_pair.totalSupply() * 1e18);
         }
-        uint256 blockRewards = (blockNumber - stacker.lastUpdateBlock) * SLEVPerBlock;
+        uint256 blockRewards = (blockNumber - stacker.lastUpdateBlock) * (SLEVPerBlock / _rewardTokens.length);
         return stacker.rewards[tokenInfo.index] + (blockRewards * valueInToken) / 1e18;
     }
 
@@ -98,7 +98,7 @@ contract LEVStackingPool {
     {
         stacker.rewards = calculateRewards(stacker, blockNumber);
         stacker.lastUpdateBlock = blockNumber;
-        stacker.totalStackedOnLastUpdate = _totalStacked;
+        stacker.totalStackedOnLastUpdate = totalStaked;
     }
 
     function stack(uint256 stackAmount) public {
@@ -110,7 +110,7 @@ contract LEVStackingPool {
             stacker.stackedAmount += stackAmount;
             updateRewards(stacker, block.number);
         }
-        _totalStacked += stackAmount;
+        totalStaked += stackAmount;
     }
 
     function unstack(uint256 amount)
@@ -123,7 +123,7 @@ contract LEVStackingPool {
         updateRewards(stacker, block.number);
         stacker.stackedAmount -= amount;
         if (stacker.stackedAmount == 0) delete _stackers[msg.sender];
-        _totalStacked -= amount;
+        totalStaked -= amount;
     }
 
     function leave() public stackerOnly {
@@ -164,7 +164,7 @@ contract LEVStackingPool {
         stacker.wallet = wallet;
         stacker.stackedAmount = stackAmount;
         stacker.lastUpdateBlock = block.number;
-        stacker.totalStackedOnLastUpdate = _totalStacked + stackAmount;
+        stacker.totalStackedOnLastUpdate = totalStaked + stackAmount;
         stacker.rewards = new uint256[](_rewardTokens.length);
     }
 
@@ -190,7 +190,7 @@ contract LEVStackingPool {
         uint totalRewardSLEV = getCurrentRewardSLEV(wallet, token);
         if (totalRewardSLEV == 0)
             return 0;
-        IUniswapV2Pair pair = IUniswapV2Pair(PancakeswapUtilities.pairFor(_router.factory(), token, address(_SLEV)));
+        IUniswapV2Pair pair = IUniswapV2Pair(PancakeswapUtilities.getPair(token, address(_SLEV), _router.factory()));
         (uint reservesA, uint reservesB) = PancakeswapUtilities.getReservesOrdered(pair, token, address(_SLEV));
         return _router.quote(totalRewardSLEV, reservesB, reservesA);
     }
@@ -203,11 +203,19 @@ contract LEVStackingPool {
         return _stackers[stackerAddress];
     }
 
-    function getStackedAmount() public view returns(uint256) {
+    function getStackedAmount() external view returns(uint256) {
         Stacker memory stacker = _stackers[msg.sender];
         if (stacker.wallet == address(0))
           return 0;
         return _stackers[msg.sender].stackedAmount;
+    }
+
+    function getRewardSLEVPerBlock() external view returns (uint) {
+        uint total = 0;
+        for (uint i = 0; i < _rewardTokens.length; i++) {
+            total += _rewardTokens[i].SLEVPerBlock;
+        }
+        return total;
     }
 }
 

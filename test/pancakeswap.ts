@@ -1,11 +1,11 @@
 import { BigNumber, Contract, ContractFactory, Wallet } from "ethers";
 import { addresses, dontRedeploy } from "../scripts/deploy";
 import { expandTo18Decimals, getLastBlock } from "./utils";
+import hre, { ethers } from "hardhat";
 
 import FactoryAbi from "../abis/UniswapV2Factory.json";
 import RouterAbi from "../abis/UniswapV2Router02.json";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
-import { ethers } from "hardhat";
 import pancakeFactoryArtifact from "../pancakeswap-core-build/PancakeFactory.json";
 import pancakeLibraryArtifact from "../pancakeswap-periphery-build/PancakeLibrary.json";
 import pancakeRouterArtifact from "../pancakeswap-periphery-build/PancakeRouter.json";
@@ -50,7 +50,7 @@ export const deployPancakeExchange = async (
 ) => {
   const BNBFactory = await ethers.getContractFactory("WBNB");
   const BNB = await BNBFactory.deploy();
-  await BNB.deposit({ value: expandTo18Decimals(1600) });
+  await BNB.deposit({ value: expandTo18Decimals(30000) });
   const Router = await ethers.getContractFactory(
     RouterAbi.abi,
     RouterAbi.bytecode
@@ -85,12 +85,12 @@ export const deployPancakeExchange = async (
 };
 
 export const deployPancakeUtilities = async () => {
-  if (dontRedeploy("pancakeUtilities")) return;
+  //  if (dontRedeploy("pancakeUtilities")) return;
   const pancakeUtilities = await ethers.getContractFactory(
     "PancakeswapUtilities"
   );
   const utilities = await pancakeUtilities.deploy({
-    gasPrice: BigNumber.from("1000000000"),
+    gasPrice: BigNumber.from("10000000000"),
   });
   return utilities;
 };

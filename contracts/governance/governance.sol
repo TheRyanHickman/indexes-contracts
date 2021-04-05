@@ -5,7 +5,7 @@ import "hardhat/console.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 contract Governance {
-    uint256 constant FAVORABLE_VOTE_THRESHOLD = 7000;
+    uint256 constant FAVORABLE_VOTE_THRESHOLD = 5000;
     uint256 constant MIN_TIME_TO_VOTE = 60 * 60 * 24;
     event NewProposal(Proposal);
     mapping(uint256 => Proposal) _proposals;

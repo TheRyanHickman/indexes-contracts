@@ -5,9 +5,10 @@ import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@uniswap/v2-core/contracts/interfaces/IUniswapV2Pair.sol";
 import "@uniswap/v2-core/contracts/interfaces/IUniswapV2Factory.sol";
 import "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
-import "hardhat/console.sol";
 import "contracts/utilities/PancakeswapUtilities.sol";
 import "contracts/tokens/WBNB.sol";
+import "./IndexController.sol";
+import "hardhat/console.sol";
 
 contract IndexPool is ERC20 {
     address private immutable _indexController;
@@ -67,7 +68,9 @@ contract IndexPool is ERC20 {
         uint quote = getIndexQuoteWithFee(amountOut);
         uint amountIn = msg.value;
         require(quote <= amountIn, "IndexPool: INSUFFICIENT_AMOUNT_IN");
-        _WBNB.deposit{value: msg.value}();
+        _WBNB.deposit{value: quote}();
+        (bool sent,) = msg.sender.call{ value: amountIn - quote }("");
+        require(sent, "IndexPool: BNB_REFUND_FAIL");
         return _mint(amountOut, quote);
     }
 
@@ -199,5 +202,6 @@ contract IndexPool is ERC20 {
 
     function _collectFee(uint256 amount) private {
         _WBNB.transfer(_indexController, amount);
+        IndexController(_indexController).redistributeFees();
     }
 }

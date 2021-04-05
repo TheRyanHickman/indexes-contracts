@@ -17,6 +17,7 @@ describe("Pool Controller", function () {
     mockSLEV: Contract,
     mockBUSD: Contract,
     mockBTC: Contract,
+    WBNB: Contract,
     pancakeRouter: Contract;
 
   before(async () => {
@@ -35,8 +36,13 @@ describe("Pool Controller", function () {
         contract: mockBTC,
         liquidity: expandTo18Decimals(200),
       },
+      LEV: {
+        contract: mockLEV,
+        liquidity: expandTo18Decimals(200),
+      },
     });
     pancakeRouter = exchange.pancakeRouter;
+    WBNB = exchange.WBNB;
   });
 
   it("Instantiates an Index Pool", async () => {
@@ -47,7 +53,7 @@ describe("Pool Controller", function () {
       },
     });
     const controllerContract = await Controller.deploy(
-      mockBUSD.address,
+      WBNB.address,
       mockLEV.address,
       mockSLEV.address,
       pancakeRouter.address,
@@ -56,8 +62,8 @@ describe("Pool Controller", function () {
     await controllerContract.createIndexPool(
       "Test INDX",
       "TNDX",
-      [mockBTC.address, mockWETH.address],
-      [30, 220],
+      [mockBTC.address, mockWETH.address, WBNB.address],
+      [30, 220, 99],
       [0]
     );
     await controllerContract.deployed();
@@ -65,6 +71,8 @@ describe("Pool Controller", function () {
     const pool = new Contract(poolAddress, poolAbi.abi, owner);
 
     const price = await pool.getIndexQuote(expandTo18Decimals(1));
-    expect(price).to.equal(BigNumber.from("97304132126727219"));
+    expect(price).to.equal(BigNumber.from("196304132126727219"));
+    const priceWFee = await pool.getIndexQuoteWithFee(expandTo18Decimals(1));
+    await pool.buyExactIndexAmount(expandTo18Decimals(1), { value: priceWFee });
   });
 });

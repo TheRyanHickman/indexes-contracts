@@ -56,7 +56,7 @@ describe("Stacking pools", function () {
       [expandTo18Decimals(1)],
       pancakeRouter.address
     );
-    await SLEV.setMinter(stackingPoolLev.address);
+    await SLEV.setMinters([owner.address, stackingPoolLev.address]);
   });
 
   it("Should returns 0 to stacking rewards", async () => {

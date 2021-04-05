@@ -52,6 +52,9 @@ export default {
         auto: true,
         interval: 15000,
       },
+      accounts: {
+        accountsBalance: "10000000000000000000000000",
+      },
     },
   },
 };

@@ -3,9 +3,9 @@
   "scripts": {
     "build": "hardhat compile",
     "test": "hardhat test",
-    "deploy:testnet": "hardhat run --network testnet ./scripts/deploy.ts",
-    "deploy:ropsten": "hardhat run --network ropsten ./scripts/deploy.ts",
-    "deploy:local": "hardhat run --network localhost ./scripts/deploy.ts"
+    "deploy:testnet": "hardhat run --network testnet ./scripts/deploy-run.ts",
+    "deploy:ropsten": "hardhat run --network ropsten ./scripts/deploy-run.ts",
+    "deploy:localhost": "hardhat run --network localhost ./scripts/deploy-run.ts"
   },
   "devDependencies": {
     "@nomiclabs/hardhat-ethers": "^2.0.2",

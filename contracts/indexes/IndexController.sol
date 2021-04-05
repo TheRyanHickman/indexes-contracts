@@ -5,6 +5,7 @@ import "./IndexPool.sol";
 import "../interfaces/IBEP20.sol";
 import "../utilities/PancakeswapUtilities.sol";
 import "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
+import "hardhat/console.sol";
 
 contract IndexController {
     string[] CATEGORIES = ["Popular"];
@@ -63,7 +64,7 @@ contract IndexController {
      ** - buy back LEV to burn
      ** - reward the dev team
      */
-    function redistributeFees() public {
+    function redistributeFees() external {
         uint256 totalFees = _WBNB.balanceOf(address(this));
         uint256 remainingToRedistribute = totalFees;
         uint256 buybackPart =
@@ -82,13 +83,12 @@ contract IndexController {
      ** Some of the index purchase fees are used to buy back LEV and reduce the total supply
      */
     function _burnLEV(uint256 amountBNB) private {
-        IUniswapV2Router02 router = IUniswapV2Router02(_pancakeRouter);
         PancakeswapUtilities.sellToken(
-            address(_LEV),
             address(_WBNB),
-            address(0),
+            address(_LEV),
+            address(_pancakeRouter),
             amountBNB,
-            router
+            _pancakeRouter
         );
     }
 

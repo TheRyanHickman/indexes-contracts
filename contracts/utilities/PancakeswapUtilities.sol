@@ -2,6 +2,7 @@
 pragma solidity ^0.8.0;
 
 import "@uniswap/v2-core/contracts/interfaces/IUniswapV2Pair.sol";
+import "@uniswap/v2-core/contracts/interfaces/IUniswapV2Factory.sol";
 import "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
 import "contracts/interfaces/IBEP20.sol";
 import "hardhat/console.sol";
@@ -15,19 +16,14 @@ library PancakeswapUtilities {
         require(token0 != address(0), 'UniswapV2Library: ZERO_ADDRESS');
     }
 
-    // calculates the CREATE2 address for a pair without making any external calls
-    function pairFor(address factory, address tokenA, address tokenB) internal pure returns (address) {
-        (address token0, address token1) = sortTokens(tokenA, tokenB);
-        return address(uint160(uint256(keccak256(abi.encodePacked(
-                hex'ff',
-                factory,
-                keccak256(abi.encodePacked(token0, token1)),
-                hex'96e8ac4277198ff8b6f785478aa9a39f403cb768dd02cbee326c3e7da348845f' // init code hash
-            )))));
+    function getPair(address tokA, address tokB, address factoryAddr) public view returns (IUniswapV2Pair) {
+      IUniswapV2Factory factory = IUniswapV2Factory(factoryAddr);
+      return IUniswapV2Pair(factory.getPair(tokA, tokB));
     }
 
     function buyToken(address tokenToSpend, address tokenToBuy, address account, uint256 amountOut, IUniswapV2Router02 pancakeRouter) public returns(uint256, uint256) {
-      IUniswapV2Pair pair = _getPair(tokenToSpend, tokenToBuy, pancakeRouter.factory());
+
+      IUniswapV2Pair pair = getPair(tokenToSpend, tokenToBuy, pancakeRouter.factory());
       (uint reservesA, uint reservesB) = getReservesOrdered(pair, tokenToSpend, tokenToBuy);
       uint amountInMin = pancakeRouter.getAmountIn(amountOut, reservesA, reservesB);
       IBEP20(tokenToSpend).approve(address(pancakeRouter), amountInMin);
@@ -58,11 +54,6 @@ library PancakeswapUtilities {
           block.timestamp + 60
       );
       return (amounts[1], amounts[0]);
-    }
-
-    // finds and returns the pair BSUD-[token]
-    function _getPair(address tokenA, address tokenB, address pancakeFactory) private pure returns(IUniswapV2Pair) {
-      return IUniswapV2Pair(PancakeswapUtilities.pairFor(pancakeFactory, tokenA, tokenB));
     }
 
     function getReservesOrdered(IUniswapV2Pair pair, address tokenFirst, address tokenSecond) public view returns(uint, uint) {

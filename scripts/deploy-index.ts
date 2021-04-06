@@ -19,20 +19,11 @@ import { deployController } from "./deploy-controller";
 import { deployMockToken } from "../test/token";
 import { expandTo18Decimals } from "../test/utils";
 
-const ownerAddr = {
-  localhost: "0x8626f6940e2eb28930efb4cef49b2d1f2c9c1199",
-  ropsten: "0xa5Caf1729c2628A3f04a60f7299f86148D1687f7",
-  testnet: "0x6DeBA0F8aB4891632fB8d381B27eceC7f7743A14",
-  hardhat: "",
-  mainnet: "0x6DeBA0F8aB4891632fB8d381B27eceC7f7743A14",
-};
-
-let network = hre.network.name;
-const ownerWallet = ownerAddr[network as keyof typeof ownerAddr];
+let network = "mainnet";
 //assert(ownerWallet === "0x6DeBA0F8aB4891632fB8d381B27eceC7f7743A14");
 
 const deployIndexController = async (addresses: any) => {
-  const owner = await ethers.getSigner(ownerWallet);
+  const [owner] = await ethers.getSigners();
 
   const addrs = addresses[network];
   const ControllerFactory = await ethers.getContractFactory("IndexController", {
@@ -51,9 +42,8 @@ const deployIndexController = async (addresses: any) => {
 };
 
 export const deployIndex = async (addrs: any) => {
-  //  network = "mainnet";
   console.log("Note: make sure to update controller if index pool was updated");
-  const owner = await ethers.getSigner(ownerWallet);
+  const [owner] = await ethers.getSigners();
   const router = await getPancakeRouter(addrs.pancakeRouter);
 
   const factoryAddr = await router.factory();
@@ -106,7 +96,6 @@ export const deployIndex = async (addrs: any) => {
     WBNB,
     addrs.tokens.BUSD
   );
-  console.log(weights);
   const tx = await controller.createIndexPool(
     "LegacyIndex",
     "LI",
@@ -114,12 +103,12 @@ export const deployIndex = async (addrs: any) => {
     weights,
     [0],
     {
-      gasLimit: 20000000,
-      gasPrice: 10000000000,
+      gasLimit: 5000000,
     }
   );
   console.log("Waiting for confirm...", tx.address);
   const receipt = await tx.wait();
+  console.log(receipt);
   return receipt.events[1].args.index;
 };
 

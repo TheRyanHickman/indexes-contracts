@@ -19,7 +19,7 @@ export const deployPairWithPresets = async (
     tokenA,
     expandTo18Decimals(1000),
     tokenB,
-    expandTo18Decimals(7),
+    expandTo18Decimals(1000),
     routerContract,
     signer
   );

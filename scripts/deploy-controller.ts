@@ -1,16 +1,15 @@
-import { addresses, logPoint, ownerAddr } from "./deploy";
-import hre, { ethers } from "hardhat";
+import { addresses } from "./deploy";
+import { ethers } from "hardhat";
 
 export const deployController = async () => {
-  const networkName = hre.network.name;
-  const owner = await ethers.getSigner(ownerAddr.mainnet);
+  const networkName = "mainnet";
+  const [owner] = await ethers.getSigners();
   const addrs = addresses[networkName];
   const ControllerFactory = await ethers.getContractFactory("IndexController", {
     libraries: {
       PancakeswapUtilities: addrs.pancakeUtilities,
     },
   });
-  logPoint();
   const indexController = await ControllerFactory.deploy(
     addrs.tokens.WBNB,
     addrs.LEV,
@@ -18,6 +17,7 @@ export const deployController = async () => {
     addrs.pancakeRouter,
     addrs.teamSharing
   );
+  console.log("CONTROLLER:", indexController.address);
   return indexController;
 };
 

@@ -7,7 +7,9 @@ const setSlevMinter = async () => {
   const addrs = addresses.mainnet;
   const [owner] = await ethers.getSigners();
   const slev = new ethers.Contract(addrs.SLEV, slevArtifcat.abi, owner);
-  const tx = await slev.setMinter("0x73511669fd4dE447feD18BB79bAFeAC93aB7F31f");
+  const minters = await slev.getMinters();
+  console.log("Minters:", minters);
+  const tx = await slev.setMinters([owner.address, addrs.LEVStakingPool]);
   await tx.wait();
 };
 

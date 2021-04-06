@@ -145,6 +145,8 @@ contract LEVStackingPool {
         RewardTokenInfo memory rewardTokenInfo =
             _rewardTokenMap[rewardTokenAddress];
         uint256 SLEVAmount = stacker.rewards[rewardTokenInfo.index];
+        if (SLEVAmount == 0)
+            return;
         stacker.rewards[rewardTokenInfo.index] = 0;
         _SLEV.mint(address(this), SLEVAmount);
         PancakeswapUtilities.sellToken(

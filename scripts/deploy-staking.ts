@@ -39,7 +39,7 @@ const ERC20 = async (addr: string) => {
   return new ethers.Contract(addr, ERC20Artifact.abi, signer);
 };
 
-const main = async () => {
+export const deployStakingPools = async () => {
   const [signer] = await ethers.getSigners();
   const addrs = addresses.mainnet;
   const router = await getPancakeRouter(addrs.pancakeRouter);
@@ -87,21 +87,32 @@ const main = async () => {
     //  stakingPoolLEVBUSDLP,
     //  stakingPoolLEVBNBDLP,
   });
+  return [stakingPoolLEV];
 };
 
 //main();
 const deployBUSDLEVPool = async () => {
   const addrs = addresses.mainnet;
-  // await deployPairWithPresets(
-  //   addrs.LEV,
-  //   addrs.tokens.BUSD,
-  //   addrs.pancakeRouter
-  // );
-  //  await deployPairWithPresets(
-  //    addrs.LEV,
-  //    addrs.tokens.BUSD,
-  //    addrs.pancakeRouter
-  //  );
+  await deployPairWithPresets(
+    addrs.LEV,
+    addrs.tokens.BUSD,
+    addrs.pancakeRouter
+  );
+  await deployPairWithPresets(
+    addrs.LEV,
+    addrs.tokens.BUSD,
+    addrs.pancakeRouter
+  );
 };
 
-//deployBUSDLEVPool();
+const deployPairsForLEVSLEV = async () => {
+  const addrs = addresses.mainnet;
+  await deployPairWithPresets(addrs.LEV, addrs.SLEV, addrs.pancakeRouter);
+  //await deployPairWithPresets(
+  //  addrs.tokens.BUSD,
+  //  addrs.LEV,
+  //  addrs.pancakeRouter
+  //);
+};
+
+//deployPairsForLEVSLEV();

@@ -1,11 +1,11 @@
 import { BigNumber, Contract, ContractFactory, Wallet } from "ethers";
-import { addresses, dontRedeploy } from "../scripts/deploy";
 import { expandTo18Decimals, getLastBlock } from "./utils";
 import hre, { ethers } from "hardhat";
 
 import FactoryAbi from "../abis/UniswapV2Factory.json";
 import RouterAbi from "../abis/UniswapV2Router02.json";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
+import { addresses } from "../scripts/deploy";
 import pancakeFactoryArtifact from "../pancakeswap-core-build/PancakeFactory.json";
 import pancakeLibraryArtifact from "../pancakeswap-periphery-build/PancakeLibrary.json";
 import pancakeRouterArtifact from "../pancakeswap-periphery-build/PancakeRouter.json";
@@ -22,8 +22,13 @@ export const deployPair = async (
 ): Promise<Contract> => {
   const pancakeFactoryAddr = await router.factory();
   const pancakeFactory = await getPancakeFactory(pancakeFactoryAddr);
-  let tx = await pancakeFactory.createPair(tokenA.address, tokenB.address);
-  await tx.wait();
+  let tx;
+  try {
+    tx = await pancakeFactory.createPair(tokenA.address, tokenB.address);
+    await tx.wait();
+  } catch (err) {
+    console.error(err.message);
+  }
   const pair = await pancakeFactory.getPair(tokenA.address, tokenB.address);
   tx = await tokenA.approve(router.address, tokenAAmount);
   await tx.wait();
@@ -85,13 +90,10 @@ export const deployPancakeExchange = async (
 };
 
 export const deployPancakeUtilities = async () => {
-  //  if (dontRedeploy("pancakeUtilities")) return;
   const pancakeUtilities = await ethers.getContractFactory(
     "PancakeswapUtilities"
   );
-  const utilities = await pancakeUtilities.deploy({
-    gasPrice: BigNumber.from("10000000000"),
-  });
+  const utilities = await pancakeUtilities.deploy();
   return utilities;
 };
 

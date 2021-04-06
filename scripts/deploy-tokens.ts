@@ -1,10 +1,11 @@
-import { dontRedeploy } from "./deploy";
 import { ethers } from "hardhat";
 import { expandTo18Decimals } from "../test/utils";
 
 export const deploySLEV = async (owner: string) => {
   const SlevFactory = await ethers.getContractFactory("SLEVToken");
-  return SlevFactory.deploy(owner, expandTo18Decimals(100000));
+  const slev = await SlevFactory.deploy(owner, expandTo18Decimals(100000));
+  console.log("SLEV:", slev.address);
+  return slev;
 };
 
 export const deployLEV = async (
@@ -19,7 +20,7 @@ export const deployLEV = async (
       PancakeswapUtilities: utilities,
     },
   });
-  return LevFactory.deploy(
+  const lev = await LevFactory.deploy(
     owner,
     expandTo18Decimals(10000),
     expandTo18Decimals(40),
@@ -27,6 +28,8 @@ export const deployLEV = async (
     router,
     teamSharing
   );
+  console.log("LEV: ", lev.address);
+  return lev;
 };
 
 //ethers

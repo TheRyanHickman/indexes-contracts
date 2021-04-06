@@ -90,7 +90,8 @@ export const deployStakingPools = async () => {
   return [stakingPoolLEV];
 };
 
-//main();
+// deployStakingPools();
+
 const deployBUSDLEVPool = async () => {
   const addrs = addresses.mainnet;
   await deployPairWithPresets(

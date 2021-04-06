@@ -25,7 +25,7 @@ export let addresses: ContractAddresses = {
     pancakeRouter: "0x05fF2B0DB69458A0750badebc4f9e13aDd608C7F",
     SLEV: "0x50d080b1df4000BDE996343dB2bAE5581f45A760",
     LEV: "0x3E9B6dc7B5Bf558f16260b6C690D609760be32B3",
-    LEVStakingPool: "0xC72B49cf5B2Dd07F7d357445E4dE159A85c05014",
+    LEVStakingPool: "0x03242a964BaEa52516BD39Ac7BBdFAa3dF60DD56",
     indexController: "0xfED73caf0cC69C40eFf4fC07ecAC2691049F3005",
     indexInstance: "0x53c858d6f6E0495C1f0031d78798289314F9C3E6",
     tokens: {

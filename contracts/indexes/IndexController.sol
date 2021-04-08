@@ -43,7 +43,7 @@ contract IndexController {
         address[] memory underlyingTokens,
         uint16[] memory weights,
         uint8[] memory categories
-    ) public {
+    ) external {
         IndexPool pool =
             new IndexPool(
                 name,
@@ -93,7 +93,7 @@ contract IndexController {
     }
 
     /*
-     ** Some of the index purchase fees are used to buy SLEV in order to reward staking users
+     ** Some of the index purchase fees are used to buy SLEV (token minted for stakers) in order to reward staking users
      */
     function _buyLevForSLEV(uint256 amountBNB) private {
         IUniswapV2Router02 router = IUniswapV2Router02(_pancakeRouter);

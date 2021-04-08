@@ -247,4 +247,22 @@ contract IndexPool is ERC20 {
             "IndexPool: PRICE_LOSS_TOO_HIGH"
         );
     }
+
+    /*
+    ** If something's wrong with the LPs or anything else, anyone can
+    ** withdraw the index underlying tokens directly to their wallets
+    */
+    function emergencyWithdraw() external {
+        uint userBalance = this.balanceOf(msg.sender);
+        for (uint i = 0; i < _underlyingTokens.length; i++) {
+            uint entitledAmount = userBalance * _tokenWeights[i] / WEIGHT_FACTOR;
+            ERC20 token = ERC20(_underlyingTokens[i]);
+            uint indexBalance = token.balanceOf(address(this));
+            // should never happen!
+            if (indexBalance < entitledAmount)
+                entitledAmount = indexBalance;
+            token.transfer(msg.sender, entitledAmount);
+        }
+        _burn(msg.sender, userBalance);
+    }
 }

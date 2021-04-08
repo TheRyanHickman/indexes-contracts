@@ -278,9 +278,7 @@ describe("Index Pool", function () {
   it("Rebalances an index with new weights", async () => {
     const pool = await deployMockIndexPool("TNDX", [10, 11, 8]);
     const quote = await pool.getIndexQuoteWithFee(expandTo18Decimals(11));
-    await pool.buyExactIndexAmount(expandTo18Decimals(11), {
-      value: quote,
-    });
+    await buyIndex(pool, 11);
     await pool.changeWeights([9, 7, 18]);
     const poolWBNBBalance = await WBNB.balanceOf(pool.address);
     await pool.sellIndex(
@@ -288,6 +286,32 @@ describe("Index Pool", function () {
       quote.sub(poolWBNBBalance).mul(96).div(100)
     );
   });
+
+  it("Withdraw tokens using the emergencyWithdraw function", async () => {
+    const pool = await deployMockIndexPool("TEST", [3, 5, 6]);
+    const balanceETHBefore = await mockWETH.balanceOf(owner.address);
+    await buyIndex(pool, 4);
+    await pool.emergencyWithdraw();
+    expect(
+      (await mockWETH.balanceOf(owner.address)).sub(balanceETHBefore)
+    ).to.eq(BigNumber.from("12000000000000000"));
+    expect(await pool.balanceOf(owner.address)).to.eq(BigNumber.from(0));
+    await buyIndex(pool, 3, devTeam);
+    await buyIndex(pool, 2);
+    await pool.connect(devTeam).emergencyWithdraw();
+    expect(await mockWETH.balanceOf(pool.address)).to.eq(
+      BigNumber.from("6000000000000000")
+    );
+    await pool.emergencyWithdraw();
+    expect(await pool.balanceOf(devTeam.address)).to.eq(BigNumber.from(0));
+  });
+
+  const buyIndex = async (index: Contract, amount: number, user = owner) => {
+    const quote = await index.getIndexQuoteWithFee(expandTo18Decimals(11));
+    return index.connect(user).buyExactIndexAmount(expandTo18Decimals(amount), {
+      value: quote,
+    });
+  };
 
   const deployMockIndexPool = async (symbol: string, weights = [2, 1, 3]) => {
     pancakeswapUtilities = (await deployPancakeUtilities()) as Contract;

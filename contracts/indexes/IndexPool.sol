@@ -56,7 +56,7 @@ contract IndexPool is ERC20 {
         emit CompositionChange(underlyingTokens, tokenWeights);
     }
 
-    function buyExactIndexForToken(uint amountOut, address paymentToken, uint amountInMax) external {
+    function buyExactIndexForToken(uint amountOut, address paymentToken, uint amountInMax) external { // a rename, encore ce pseudo parametre en nom de fonction,  buyIndex is enought
         uint quote = getIndexQuoteWithFee(amountOut);
         ERC20(paymentToken).transferFrom(msg.sender, address(this), amountInMax);
         (, uint spent) = PancakeswapUtilities.buyToken(paymentToken, address(_WBNB), address(this), quote, _pancakeRouter);
@@ -74,7 +74,7 @@ contract IndexPool is ERC20 {
         return _mint(amountOut, quote);
     }
 
-    function _mint(uint256 amountOut, uint256 amountIn) private {
+    function _mint(uint256 amountOut, uint256 amountIn) private { // ca mint pas, ca fait bcp plus.
         uint256 totalTokensBought = 0;
         uint totalSpent = 0;
         for (uint256 i = 0; i < _underlyingTokens.length; i++) {
@@ -110,7 +110,7 @@ contract IndexPool is ERC20 {
         require(amountOut >= amountOutMin, "IndexPool: AMOUNT_OUT_TOO_LOW");
     }
 
-    function burn(uint amount) private returns(uint) {
+    function burn(uint amount) private returns(uint) { // ca burn pas non plus, ca fait bcp plus que burn
         require(amount <= balanceOf(msg.sender), "IndexPool: INSUFFICIENT_BALANCE");
 
         uint256 totalTokensSold = 0;

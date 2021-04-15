@@ -1,10 +1,10 @@
-import { deployPair, getPancakeRouter } from "../test/pancakeswap";
-
 import ERC20Artifact from "../artifacts/contracts/tokens/LEVToken.sol/LEVToken.json";
+import { addSlevMinter } from "./set-slev-minter";
 import { addresses } from "./deploy";
 import { deployPairWithPresets } from "./deploy-pair";
 import { ethers } from "hardhat";
 import { expandTo18Decimals } from "../test/utils";
+import { getPancakeRouter } from "../test/pancakeswap";
 
 export const getStakingPoolFactory = (putilities: string) => {
   return ethers.getContractFactory("LEVStackingPool", {
@@ -58,22 +58,29 @@ export const deployStakingPools = async () => {
   // );
   //  const levslevlp = await router.getPair(addrs.LEV, addrs.SLEV);
   //  console.log(levslevlp);
-  const stakingPoolLEV = await deployStakingPool(
+  // const stakingPoolLEV = await deployStakingPool(
+  //   addrs.pancakeUtilities,
+  //   addrs.SLEV,
+  //   ethers.constants.AddressZero,
+  //   addrs.LEV,
+  //   [addrs.LEV, addrs.tokens.BUSD],
+  //   addrs.pancakeRouter
+  // );
+  console.log(addrs);
+  const lp = await deployPairWithPresets(
+    addrs.LEV,
+    addrs.tokens.BUSD,
+    router.address
+  );
+  const stakingPoolLEVBUSDLP = await deployStakingPool(
     addrs.pancakeUtilities,
     addrs.SLEV,
-    ethers.constants.AddressZero,
-    addrs.LEV,
-    [addrs.LEV, addrs.tokens.BUSD],
+    lp,
+    lp,
+    [addrs.LEV],
     addrs.pancakeRouter
   );
-  //const stakingPoolLEVBUSDLP = await deployStakingPool(
-  //  addrs.pancakeUtilities,
-  //  addrs.SLEV,
-  //  addrs.tokens.levbusdlp,
-  //  addrs.tokens.levbusdlp,
-  //  [addrs.LEV],
-  //  addrs.pancakeRouter
-  //);
+  await addSlevMinter(stakingPoolLEVBUSDLP);
   //const stakingPoolLEVBNBDLP = await deployStakingPool(
   //  addrs.pancakeUtilities,
   //  addrs.SLEV,
@@ -82,12 +89,14 @@ export const deployStakingPools = async () => {
   //  [addrs.LEV],
   //  addrs.pancakeRouter
   //);
-  console.log({
-    stakingPoolLEV,
-    //  stakingPoolLEVBUSDLP,
+  const deployed = {
+    stakingPoolLEV: null,
+    stakingPoolLEVBUSDLP,
     //  stakingPoolLEVBNBDLP,
-  });
-  return [stakingPoolLEV];
+  };
+
+  console.log(deployed);
+  return deployed;
 };
 
 // deployStakingPools();
@@ -116,4 +125,4 @@ const deployPairsForLEVSLEV = async () => {
   //);
 };
 
-//deployPairsForLEVSLEV();
+deployStakingPools();

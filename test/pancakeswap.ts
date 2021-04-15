@@ -22,6 +22,18 @@ export const deployPair = async (
 ): Promise<Contract> => {
   const pancakeFactoryAddr = await router.factory();
   const pancakeFactory = await getPancakeFactory(pancakeFactoryAddr);
+  const possiblePair = await pancakeFactory.getPair(
+    tokenA.address,
+    tokenB.address
+  );
+  if (hre.network.name !== "hardhat" && possiblePair) {
+    console.log("Pair already exists at", possiblePair);
+    return new ethers.Contract(
+      possiblePair,
+      uniswapPairArtifact.abi,
+      router.signer
+    );
+  }
   let tx;
   try {
     tx = await pancakeFactory.createPair(tokenA.address, tokenB.address);

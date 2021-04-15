@@ -78,7 +78,7 @@ export const main = async () => {
   } catch (err) {
     console.log("weirdly fails.");
   }
-  const [stakingPoolLEV] = await deployStakingPools();
+  const { stakingPoolLEV } = await deployStakingPools();
   const deployed = {
     utilities: addrs.pancakeUtilities,
     slev: addrs.SLEV,

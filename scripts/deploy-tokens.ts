@@ -3,9 +3,7 @@ import { expandTo18Decimals } from "../test/utils";
 
 export const deploySLEV = async (owner: string) => {
   const SlevFactory = await ethers.getContractFactory("SLEVToken");
-  const slev = await SlevFactory.deploy(owner, expandTo18Decimals(100000));
-  console.log("SLEV:", slev.address);
-  return slev;
+  return SlevFactory.deploy(owner, expandTo18Decimals(100000));
 };
 
 export const deployLEV = async (

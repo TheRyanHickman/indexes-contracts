@@ -59,7 +59,7 @@ contract IndexPool is ERC20 {
     function buyExactIndexForToken(uint amountOut, address paymentToken, uint amountInMax) external {
         uint quote = getIndexQuoteWithFee(amountOut);
         ERC20(paymentToken).transferFrom(msg.sender, address(this), amountInMax);
-        (uint bought, uint spent) = PancakeswapUtilities.buyToken(paymentToken, address(_WBNB), address(this), quote, _pancakeRouter);
+        (, uint spent) = PancakeswapUtilities.buyToken(paymentToken, address(_WBNB), address(this), quote, _pancakeRouter);
         require(spent <= amountInMax, "IndexPool: INSUFFICIENT_AMOUNT_IN_MAX");
         return _mint(amountOut, quote);
     }
@@ -146,6 +146,9 @@ contract IndexPool is ERC20 {
         require(sent, "IndexPool: SEND_BNB_FAIL");
         emit Burn(msg.sender, amountToBurn, amountToPayUser);
         return amountToPayUser;
+    }
+
+    receive() external payable {
     }
 
     fallback () external payable {

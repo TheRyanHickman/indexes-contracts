@@ -15,7 +15,7 @@ export const deployPairWithPresets = async (
   const tokenA = new ethers.Contract(tokA, erc.abi, signer);
   const tokenB = new ethers.Contract(tokB, erc.abi, signer);
   const routerContract = new ethers.Contract(routerAddr, router.abi, signer);
-  await deployPair(
+  const pair = await deployPair(
     tokenA,
     expandTo18Decimals(1000),
     tokenB,
@@ -24,6 +24,7 @@ export const deployPairWithPresets = async (
     signer
   );
   console.log("Pair deployed");
+  return pair.address;
 };
 
 //deployPairWithPresets(

@@ -82,7 +82,7 @@ contract IndexController {
     /*
      ** Some of the index purchase fees are used to buy back LEV and reduce the total supply
      */
-    function _burnLEV(uint256 amountBNB) private {
+    function _burnLEV(uint256 amountBNB) private { // wrong name "Burn" for the action
         PancakeswapUtilities.sellToken(
             address(_WBNB),
             address(_LEV),
@@ -95,7 +95,7 @@ contract IndexController {
     /*
      ** Some of the index purchase fees are used to buy SLEV (token minted for stakers) in order to reward staking users
      */
-    function _buyLevForSLEV(uint256 amountBNB) private {
+    function _buyLevForSLEV(uint256 amountBNB) private { // wtf?  the name ? buy dollar for euro ? is that clear for you ? because absolutely not for me
         IUniswapV2Router02 router = IUniswapV2Router02(_pancakeRouter);
         PancakeswapUtilities.buyToken(
             address(_WBNB),
@@ -106,7 +106,7 @@ contract IndexController {
         );
         uint256 LEVBalance = _LEV.balanceOf(address(this));
 
-        // burn the SLEV to raise its price against LEV
+        // burn the SLEV to raise its price against LEV  // Apparently its still not a burn.
         PancakeswapUtilities.sellToken(
             address(_SLEV),
             address(_LEV),

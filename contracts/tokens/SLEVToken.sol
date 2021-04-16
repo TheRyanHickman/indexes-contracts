@@ -5,15 +5,15 @@ import "hardhat/console.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "contracts/interfaces/IMintable.sol";
 import "contracts/interfaces/IBurnable.sol";
-import "contracts/staking/LEVStackingPool.sol";
+import "contracts/staking/AStakingPool.sol";
 
 contract SLEVToken is ERC20, IMintable, IBurnable {
     uint256 _initialSupply;
-    LEVStackingPool[] _stackingPools;
+    AStakingPool[] _stakingPools;
     address[] public _minters;
 
     constructor(address owner, uint256 initialSupply)
-        ERC20("Stacked LEV", "SLEV")
+        ERC20("Staked LEV", "SLEV")
     {
         _initialSupply = initialSupply;
         _minters.push(owner);

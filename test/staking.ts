@@ -13,7 +13,7 @@ import { deploySLEV } from "../scripts/deploy-tokens";
 import { ethers } from "hardhat";
 import { expect } from "chai";
 
-describe("Stacking pools", function () {
+describe("Staking pools", function () {
   let owner: SignerWithAddress, devTeam: SignerWithAddress;
   let LEV: Contract,
     levPair: Contract,
@@ -54,7 +54,7 @@ describe("Stacking pools", function () {
 
     const pancakeswapUtilities = (await deployPancakeUtilities()) as Contract;
     const StackingPoolFactory = await ethers.getContractFactory(
-      "LEVStackingPool",
+      "LEVTokenStakingPool",
       {
         libraries: {
           PancakeswapUtilities: pancakeswapUtilities.address,
@@ -64,7 +64,6 @@ describe("Stacking pools", function () {
     stackingPoolLev = await StackingPoolFactory.deploy(
       SLEV.address,
       mockLEV.address,
-      ethers.constants.AddressZero,
       [mockLEV.address, mockBUSD.address],
       [expandTo18Decimals(1), expandTo18Decimals(1)],
       pancakeRouter.address
@@ -78,7 +77,7 @@ describe("Stacking pools", function () {
       mockLEV.address
     );
     expect(rewards).to.equal(ethers.constants.Zero);
-    expect(await stackingPoolLev.getStackedAmount()).to.equal(
+    expect(await stackingPoolLev.getStakedAmount()).to.equal(
       ethers.constants.Zero
     );
   });
@@ -90,7 +89,7 @@ describe("Stacking pools", function () {
     expect(await mockLEV.balanceOf(owner.address)).to.equal(
       balanceLEVBefore.sub(expandTo18Decimals(20))
     );
-    expect(await stackingPoolLev.getStackedAmount()).to.equal(
+    expect(await stackingPoolLev.getStakedAmount()).to.equal(
       expandTo18Decimals(20)
     );
     await mineBlock(owner.provider);
@@ -99,7 +98,7 @@ describe("Stacking pools", function () {
     await mockLEV.approve(stackingPoolLev.address, expandTo18Decimals(1));
     await stackingPoolLev.stack(expandTo18Decimals(1));
     await mineBlock(owner.provider);
-    expect(await stackingPoolLev.getStackedAmount()).to.equal(
+    expect(await stackingPoolLev.getStakedAmount()).to.equal(
       expandTo18Decimals(21)
     );
     expect(
@@ -128,7 +127,7 @@ describe("Stacking pools", function () {
   it("Stacks LP tokens", async () => {
     const pancakeswapUtilities = (await deployPancakeUtilities()) as Contract;
     const StackingPoolFactory = await ethers.getContractFactory(
-      "LEVStackingPool",
+      "LPTokenStakingPool",
       {
         libraries: {
           PancakeswapUtilities: pancakeswapUtilities.address,
@@ -138,9 +137,8 @@ describe("Stacking pools", function () {
     const stackingPoolLP = await StackingPoolFactory.deploy(
       SLEV.address,
       levPair.address,
-      levPair.address,
       [mockLEV.address],
-      [expandTo18Decimals(1)],
+      [expandTo18Decimals(2)],
       pancakeRouter.address
     );
     await levPair.approve(stackingPoolLP.address, expandTo18Decimals(2));

@@ -9,20 +9,18 @@ import "contracts/tokens/SLEVToken.sol";
 import "contracts/tokens/LEVToken.sol";
 import "contracts/utilities/PancakeswapUtilities.sol";
 
-contract LEVStackingPool {
+abstract contract AStakingPool {
     uint256 public totalStaked;
     SLEVToken immutable _SLEV;
     IBEP20 immutable _stakeToken;
     RewardTokenInfo[] public _rewardTokens;
     IUniswapV2Router02 immutable _router;
-    IUniswapV2Pair immutable _pair; // to stack an LP token
-    mapping(address => Stacker) _stackers;
+    mapping(address => Staker) _stakers;
     mapping(address => RewardTokenInfo) _rewardTokenMap;
 
     constructor(
         address SLEV,
         address stakeToken,
-        address pair,
         address[] memory rewardTokens,
         uint256[] memory SLEVPerBlock,
         IUniswapV2Router02 router
@@ -34,7 +32,6 @@ contract LEVStackingPool {
         _SLEV = SLEVToken(SLEV);
         _router = router;
         _stakeToken = IBEP20(stakeToken);
-        _pair = IUniswapV2Pair(pair);
         for (uint256 i = 0; i < rewardTokens.length; i++) {
             address rewardTokenAddress = rewardTokens[i];
             ERC20 rewardToken = ERC20(rewardTokenAddress);
@@ -49,139 +46,132 @@ contract LEVStackingPool {
         }
     }
 
-    modifier stackerOnly {
+    modifier stakerOnly {
         require(
-            _stackers[msg.sender].wallet != address(0),
-            "You must be a stacker."
+            _stakers[msg.sender].wallet != address(0),
+            "You must be a staker."
         );
         _;
     }
 
-    modifier minStackedAmount(uint256 amount) {
+    modifier minStakedAmount(uint256 amount) {
         require(
-            _stackers[msg.sender].stackedAmount >= amount,
-            "Stacked amount insufficient."
+            _stakers[msg.sender].stakedAmount >= amount,
+            "Staked amount insufficient."
         );
         _;
     }
 
-    function calculateRewards(Stacker storage stacker, uint256 blockNumber)
+    function calculateRewards(Staker storage staker, uint256 blockNumber)
         private
         view
         returns (uint256[] memory)
     {
         uint256[] memory rewards = new uint256[](_rewardTokens.length);
         for (uint256 i = 0; i < _rewardTokens.length; i++) {
-            rewards[i] = calculateReward(stacker, blockNumber, address(_rewardTokens[i].rewardToken));
+            rewards[i] = calculateReward(staker, blockNumber, address(_rewardTokens[i].rewardToken));
         }
         return rewards;
     }
 
-    function calculateReward(Stacker storage stacker, uint blockNumber, address token) private view returns (uint) {
-        if (stacker.wallet == address(0))
+    function calculateReward(Staker memory staker, uint blockNumber, address token) public virtual view returns (uint) {
+        if (staker.wallet == address(0))
           return 0;
         RewardTokenInfo storage tokenInfo = _rewardTokenMap[token];
         uint256 SLEVPerBlock = tokenInfo.SLEVPerBlock;
-        uint valueInToken = stacker.stackedAmount;
-        if (address(_pair) != address(0)) {
-            bool isStackedToken0 = _pair.token0() == token;
-            (uint reserve0, uint reserve1,) = _pair.getReserves();
-            uint reserve = isStackedToken0 ? reserve0 : reserve1;
-            valueInToken = (stacker.stackedAmount * _pair.balanceOf(msg.sender) * reserve) / (_pair.totalSupply() * 1e18);
-        }
-        uint256 blockRewards = (blockNumber - stacker.lastUpdateBlock) * (SLEVPerBlock / _rewardTokens.length);
-        return stacker.rewards[tokenInfo.index] + (blockRewards * valueInToken) / 1e18;
+        uint256 blockRewards = (blockNumber - staker.lastUpdateBlock) * (SLEVPerBlock / _rewardTokens.length);
+        return staker.rewards[tokenInfo.index] + (blockRewards * staker.stakedAmount) / 1e18;
     }
 
-    function updateRewards(Stacker storage stacker, uint256 blockNumber)
+    function updateRewards(Staker storage staker, uint256 blockNumber)
         private
     {
-        stacker.rewards = calculateRewards(stacker, blockNumber);
-        stacker.lastUpdateBlock = blockNumber;
-        stacker.totalStackedOnLastUpdate = totalStaked;
+        staker.rewards = calculateRewards(staker, blockNumber);
+        staker.lastUpdateBlock = blockNumber;
+        staker.totalStakedOnLastUpdate = totalStaked;
     }
 
     function stack(uint256 stackAmount) public {
         _stakeToken.transferFrom(msg.sender, address(this), stackAmount);
-        Stacker storage stacker = _stackers[msg.sender];
-        if (stacker.wallet == address(0))
-            initializeStacker(stacker, msg.sender, stackAmount);
+        Staker storage staker = _stakers[msg.sender];
+        if (staker.wallet == address(0))
+            initializeStaker(staker, msg.sender, stackAmount);
         else {
-            stacker.stackedAmount += stackAmount;
-            updateRewards(stacker, block.number);
+            staker.stakedAmount += stackAmount;
+            updateRewards(staker, block.number);
         }
         totalStaked += stackAmount;
     }
 
     function unstack(uint256 amount)
         public
-        stackerOnly
-        minStackedAmount(amount)
+        stakerOnly
+        minStakedAmount(amount)
     {
         _stakeToken.transferFrom(address(this), msg.sender, amount);
-        Stacker storage stacker = _stackers[msg.sender];
-        updateRewards(stacker, block.number);
-        stacker.stackedAmount -= amount;
-        if (stacker.stackedAmount == 0) delete _stackers[msg.sender];
+        Staker storage staker = _stakers[msg.sender];
+        updateRewards(staker, block.number);
+        staker.stakedAmount -= amount;
+        if (staker.stakedAmount == 0) delete _stakers[msg.sender];
         totalStaked -= amount;
     }
 
-    function leave() public stackerOnly {
-        Stacker storage stacker = _stackers[msg.sender];
+    function leave() public stakerOnly {
+        Staker storage staker = _stakers[msg.sender];
         collectAllRewards();
-        unstack(stacker.stackedAmount);
+        unstack(staker.stakedAmount);
     }
 
-    function collectAllRewards() public stackerOnly {
+    function collectAllRewards() public stakerOnly {
         for (uint256 i = 0; i < _rewardTokens.length; i++) {
             address rewardTokenAddress = address(_rewardTokens[i].rewardToken);
             collectReward(rewardTokenAddress);
         }
     }
 
-    function collectReward(address rewardTokenAddress) public stackerOnly {
-        Stacker storage stacker = _stackers[msg.sender];
-        updateRewards(stacker, block.number);
+    function collectReward(address rewardTokenAddress) public stakerOnly {
+        Staker storage staker = _stakers[msg.sender];
+        updateRewards(staker, block.number);
         RewardTokenInfo memory rewardTokenInfo =
             _rewardTokenMap[rewardTokenAddress];
-        uint256 SLEVAmount = stacker.rewards[rewardTokenInfo.index];
+        uint256 SLEVAmount = staker.rewards[rewardTokenInfo.index];
         if (SLEVAmount == 0)
             return;
-        stacker.rewards[rewardTokenInfo.index] = 0;
+        staker.rewards[rewardTokenInfo.index] = 0;
         _SLEV.mint(address(this), SLEVAmount);
         PancakeswapUtilities.sellToken(
             address(_SLEV),
             address(rewardTokenInfo.rewardToken),
-            stacker.wallet,
+            staker.wallet,
             SLEVAmount,
             _router
         );
     }
 
-    function initializeStacker(
-        Stacker storage stacker,
+    function initializeStaker(
+        Staker storage staker,
         address wallet,
         uint256 stackAmount
     ) private {
-        stacker.wallet = wallet;
-        stacker.stackedAmount = stackAmount;
-        stacker.lastUpdateBlock = block.number;
-        stacker.totalStackedOnLastUpdate = totalStaked + stackAmount;
-        stacker.rewards = new uint256[](_rewardTokens.length);
+        staker.wallet = wallet;
+        staker.stakedAmount = stackAmount;
+        staker.lastUpdateBlock = block.number;
+        staker.totalStakedOnLastUpdate = totalStaked + stackAmount;
+        staker.rewards = new uint256[](_rewardTokens.length);
     }
 
-    function getCurrentRewardSLEV(address wallet)
+    function getCurrentReward(address wallet)
         private
         view
         returns (uint[] memory)
     {
-        return calculateRewards(_stackers[wallet], block.number);
+        return calculateRewards(_stakers[wallet], block.number);
     }
 
-    function getCurrentRewardSLEV(address wallet, address token) private view returns (uint) {
+    function getCurrentReward(address wallet, address token) private view returns (uint) {
         if (wallet == address(0))
             return 0;
-        return calculateReward(_stackers[wallet], block.number, token);
+        return calculateReward(_stakers[wallet], block.number, token);
     }
 
     function getCurrentRewards(address wallet, address token)
@@ -189,7 +179,7 @@ contract LEVStackingPool {
         view
         returns (uint)
     {
-        uint totalRewardSLEV = getCurrentRewardSLEV(wallet, token);
+        uint totalRewardSLEV = getCurrentReward(wallet, token);
         if (totalRewardSLEV == 0)
             return 0;
         IUniswapV2Pair pair = IUniswapV2Pair(PancakeswapUtilities.getPair(token, address(_SLEV), _router.factory()));
@@ -197,22 +187,22 @@ contract LEVStackingPool {
         return _router.quote(totalRewardSLEV, reservesB, reservesA);
     }
 
-    function getStacker(address stackerAddress)
+    function getStaker(address stakerAddress)
         public
         view
-        returns (Stacker memory)
+        returns (Staker memory)
     {
-        return _stackers[stackerAddress];
+        return _stakers[stakerAddress];
     }
 
-    function getStackedAmount() external view returns(uint256) {
-        Stacker memory stacker = _stackers[msg.sender];
-        if (stacker.wallet == address(0))
+    function getStakedAmount() external view returns(uint256) {
+        Staker memory staker = _stakers[msg.sender];
+        if (staker.wallet == address(0))
           return 0;
-        return _stackers[msg.sender].stackedAmount;
+        return _stakers[msg.sender].stakedAmount;
     }
 
-    function getRewardSLEVPerBlock() external view returns (uint) {
+    function getRewardPerBlock() external view returns (uint) {
         uint total = 0;
         for (uint i = 0; i < _rewardTokens.length; i++) {
             total += _rewardTokens[i].SLEVPerBlock;
@@ -227,10 +217,10 @@ struct RewardTokenInfo {
     uint256 SLEVPerBlock;
 }
 
-struct Stacker {
-    uint256 stackedAmount;
+struct Staker {
+    uint256 stakedAmount;
     uint256 lastUpdateBlock;
-    uint256 totalStackedOnLastUpdate;
+    uint256 totalStakedOnLastUpdate;
     address wallet;
     uint256[] rewards;
 }

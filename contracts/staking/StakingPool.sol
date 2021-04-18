@@ -9,7 +9,7 @@ import "contracts/tokens/SLEVToken.sol";
 import "contracts/tokens/LEVToken.sol";
 import "contracts/utilities/PancakeswapUtilities.sol";
 
-abstract contract AStakingPool {
+contract StakingPool {
     uint256 public totalStaked;
     SLEVToken immutable _SLEV;
     IBEP20 immutable _stakeToken;
@@ -22,11 +22,11 @@ abstract contract AStakingPool {
         address SLEV,
         address stakeToken,
         address[] memory rewardTokens,
-        uint256[] memory SLEVPerBlock,
+        uint256[] memory multiplier,
         IUniswapV2Router02 router
     ) {
         require(
-            rewardTokens.length == SLEVPerBlock.length,
+            rewardTokens.length == multiplier.length,
             "reward tokens and reward per block arrays must have the same size."
         );
         _SLEV = SLEVToken(SLEV);
@@ -38,7 +38,7 @@ abstract contract AStakingPool {
             _rewardTokens.push(
                 RewardTokenInfo({
                     rewardToken: rewardToken,
-                    SLEVPerBlock: SLEVPerBlock[i],
+                    multiplier: multiplier[i],
                     index: i
                 })
             );
@@ -74,13 +74,13 @@ abstract contract AStakingPool {
         return rewards;
     }
 
-    function calculateReward(Staker memory staker, uint blockNumber, address token) public virtual view returns (uint) {
+    function calculateReward(Staker memory staker, uint blockNumber, address token) public view returns (uint) {
         if (staker.wallet == address(0))
           return 0;
         RewardTokenInfo storage tokenInfo = _rewardTokenMap[token];
-        uint256 SLEVPerBlock = tokenInfo.SLEVPerBlock;
-        uint256 blockRewards = (blockNumber - staker.lastUpdateBlock) * (SLEVPerBlock / _rewardTokens.length);
-        return staker.rewards[tokenInfo.index] + (blockRewards * staker.stakedAmount) / 1e18;
+        uint256 multiplier = tokenInfo.multiplier;
+        uint256 blockRewards = (blockNumber - staker.lastUpdateBlock) * multiplier;
+        return staker.rewards[tokenInfo.index] + (blockRewards * staker.stakedAmount) / totalStaked;
     }
 
     function updateRewards(Staker storage staker, uint256 blockNumber)
@@ -205,7 +205,7 @@ abstract contract AStakingPool {
     function getRewardPerBlock() external view returns (uint) {
         uint total = 0;
         for (uint i = 0; i < _rewardTokens.length; i++) {
-            total += _rewardTokens[i].SLEVPerBlock;
+            total += _rewardTokens[i].multiplier;
         }
         return total;
     }
@@ -214,7 +214,7 @@ abstract contract AStakingPool {
 struct RewardTokenInfo {
     ERC20 rewardToken;
     uint256 index;
-    uint256 SLEVPerBlock;
+    uint256 multiplier;
 }
 
 struct Staker {

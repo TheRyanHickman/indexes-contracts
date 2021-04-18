@@ -1,18 +1,14 @@
-import { Contract, ContractFactory } from "@ethersproject/contracts";
 import { deployLEV, deploySLEV } from "./deploy-tokens";
 import {
   deployPair,
-  deployPancakeExchange,
   deployPancakeUtilities,
   getPancakeRouter,
 } from "../test/pancakeswap";
-import { deployStakingPool, deployStakingPools } from "./deploy-staking";
 import hre, { ethers } from "hardhat";
 
-import { BigNumber } from "@ethersproject/bignumber";
+import { Contract } from "@ethersproject/contracts";
 import { deployController } from "./deploy-controller";
-import { deployIndex } from "./deploy-index";
-import { deployMockToken } from "../test/token";
+import { deployStakingPools } from "./deploy-staking";
 import { expandTo18Decimals } from "../test/utils";
 import fs from "fs";
 
@@ -40,13 +36,26 @@ export let addresses: ContractAddresses = {
 };
 
 export const main = async () => {
+  const [owner] = await ethers.getSigners();
+  const utilities = await deployPancakeUtilities();
+  const DeployAll = await ethers.getContractFactory("DeployAll", {
+    libraries: {
+      PancakeswapUtilities: utilities.address,
+    },
+  });
+  const ctr = await DeployAll.deploy({
+    gasLimit: 9500000,
+  });
+  const receipt = await ctr.deployTransaction.wait();
+  console.log(receipt);
+  return;
+
   const network = "mainnet";
   const addrs = addresses[network];
-  const [owner] = await ethers.getSigners();
   const router = await getPancakeRouter(addrs.pancakeRouter);
 
   console.log(`Deploying all contracts to ${network} by ${owner.address}...`);
-  const utilities = await deployPancakeUtilities();
+  //const utilities = await deployPancakeUtilities();
   addrs.pancakeUtilities = utilities.address;
   const slev = await deploySLEV(owner.address);
   addrs.SLEV = slev.address;
@@ -154,3 +163,5 @@ type ContractAddresses = Record<
     };
   }
 >;
+
+main();

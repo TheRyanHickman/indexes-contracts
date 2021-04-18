@@ -53,14 +53,11 @@ describe("Staking pools", function () {
     );
 
     const pancakeswapUtilities = (await deployPancakeUtilities()) as Contract;
-    const StackingPoolFactory = await ethers.getContractFactory(
-      "LEVTokenStakingPool",
-      {
-        libraries: {
-          PancakeswapUtilities: pancakeswapUtilities.address,
-        },
-      }
-    );
+    const StackingPoolFactory = await ethers.getContractFactory("StakingPool", {
+      libraries: {
+        PancakeswapUtilities: pancakeswapUtilities.address,
+      },
+    });
     stackingPoolLev = await StackingPoolFactory.deploy(
       SLEV.address,
       mockLEV.address,
@@ -126,14 +123,11 @@ describe("Staking pools", function () {
 
   it("Stacks LP tokens", async () => {
     const pancakeswapUtilities = (await deployPancakeUtilities()) as Contract;
-    const StackingPoolFactory = await ethers.getContractFactory(
-      "LPTokenStakingPool",
-      {
-        libraries: {
-          PancakeswapUtilities: pancakeswapUtilities.address,
-        },
-      }
-    );
+    const StackingPoolFactory = await ethers.getContractFactory("StakingPool", {
+      libraries: {
+        PancakeswapUtilities: pancakeswapUtilities.address,
+      },
+    });
     const stackingPoolLP = await StackingPoolFactory.deploy(
       SLEV.address,
       levPair.address,

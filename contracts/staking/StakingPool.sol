@@ -5,7 +5,7 @@ import "hardhat/console.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "contracts/interfaces/IBEP20.sol";
 import "@uniswap/v2-core/contracts/interfaces/IUniswapV2Pair.sol";
-import "contracts/tokens/SLEVToken.sol";
+import "contracts/staking/SLEVToken.sol";
 import "contracts/tokens/LEVToken.sol";
 import "contracts/utilities/PancakeswapUtilities.sol";
 

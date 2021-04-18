@@ -6,7 +6,7 @@ import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
 import "contracts/interfaces/IBurnable.sol";
 import "contracts/utilities/PancakeswapUtilities.sol";
-import "contracts/tokens/SLEVToken.sol";
+import "contracts/staking/SLEVToken.sol";
 
 contract LEVToken is ERC20, IBurnable {
     uint256 _createdAtBlock;

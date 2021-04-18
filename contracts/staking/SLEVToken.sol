@@ -8,16 +8,21 @@ import "contracts/interfaces/IBurnable.sol";
 import "contracts/staking/StakingPool.sol";
 
 contract SLEVToken is ERC20, IMintable, IBurnable {
-    uint256 _initialSupply;
     StakingPool[] _stakingPools;
     address[] public _minters;
+    address _owner;
 
     constructor(address owner, uint256 initialSupply)
         ERC20("Staked LEV", "SLEV")
     {
-        _initialSupply = initialSupply;
         _minters.push(owner);
-        _mint(owner, initialSupply);
+        _owner = owner;
+        _mint(_owner, initialSupply);
+    }
+
+    modifier ownerOnly {
+        require(msg.sender == _owner, "SLEV: NOT_THE_OWNER");
+        _;
     }
 
     modifier minterOnly {
@@ -46,10 +51,14 @@ contract SLEVToken is ERC20, IMintable, IBurnable {
         return _minters;
     }
 
-    function setMinters(address[] memory newMinters) external minterOnly {
+    function setMinters(address[] memory newMinters) external ownerOnly {
         delete _minters;
         for (uint i = 0; i < newMinters.length; i++) {
-            _minters.push(newMinters[i]);
+            addMinter(newMinters[i]);
         }
+    }
+
+    function addMinter(address newMinter) public ownerOnly {
+        _minters.push(newMinter);
     }
 }

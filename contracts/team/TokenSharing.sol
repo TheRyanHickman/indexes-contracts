@@ -8,7 +8,6 @@ contract TokenSharing {
     uint256 constant FAVORABLE_VOTE_THRESHOLD = 7000;
     event NewProposal(Proposal);
     event Transfer(Shareholder, uint256);
-    ERC20[] _tokens;
     uint256 _proposalDate;
     uint256 _totalShares;
     uint256 _totalVotingShares;
@@ -16,10 +15,7 @@ contract TokenSharing {
     Shareholder[] _shareholders;
     Proposal[] _proposals;
 
-    constructor(address owner, address[] memory tokenAddresses) {
-        for (uint256 i = 0; i < tokenAddresses.length; i++) {
-            _tokens.push(ERC20(tokenAddresses[i]));
-        }
+    constructor(address owner) {
         Shareholder[] memory shareholders = new Shareholder[](1);
         shareholders[0] = Shareholder({
             wallet: owner,
@@ -50,9 +46,10 @@ contract TokenSharing {
         _;
     }
 
-    function distributeAllTokens() public {
-        for (uint256 i = 0; i < _tokens.length; i++) {
-            distributeToken(_tokens[i]);
+    function distributeAllTokens(address[] memory tokenAddresses) public {
+        for (uint256 i = 0; i < tokenAddresses.length; i++) {
+            ERC20 token = ERC20(tokenAddresses[i]);
+            distributeToken(token);
         }
     }
 

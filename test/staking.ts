@@ -100,7 +100,7 @@ describe("Staking pools", function () {
     );
     expect(
       await stackingPoolLev.getCurrentRewards(owner.address, mockLEV.address)
-    ).to.equal(expandTo18Decimals(525));
+    ).to.equal(expandTo18Decimals(52));
   });
 
   it("Gets rewarded with LEV", async () => {
@@ -117,8 +117,8 @@ describe("Staking pools", function () {
     await stackingPoolLev.collectAllRewards();
     const balanceLEVAfter = await mockLEV.balanceOf(owner.address);
     const difference = balanceLEVAfter.sub(balanceLEVBefore);
-    expect(difference).to.equal(BigNumber.from("1545998570940169257196"));
-    expect(availableRewards).to.equal(BigNumber.from("1410000000000000000000"));
+    expect(difference).to.equal(BigNumber.from("128589862143326522172"));
+    expect(availableRewards).to.equal(BigNumber.from("119142857142857142850"));
   });
 
   it("Stacks LP tokens", async () => {
@@ -148,7 +148,7 @@ describe("Staking pools", function () {
     await stackingPoolLev.collectAllRewards();
     const balanceLEVAfter = await mockLEV.balanceOf(owner.address);
     const difference = balanceLEVAfter.sub(balanceLEVBefore);
-    expect(difference).to.equal(BigNumber.from("1259287534081683882782"));
-    expect(availableRewards).to.equal(BigNumber.from("1119511411770259458606"));
+    expect(difference).to.equal(BigNumber.from("79491376968285535189"));
+    expect(availableRewards).to.equal(BigNumber.from("69819819786375552149"));
   });
 });

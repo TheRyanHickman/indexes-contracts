@@ -9,7 +9,6 @@ import "contracts/staking/StakingPool.sol";
 
 contract SLEVToken is ERC20, IMintable, IBurnable {
     uint256 _initialSupply;
-    StakingPool[] _stakingPools;
     address[] public _minters;
 
     constructor(address owner, uint256 initialSupply)

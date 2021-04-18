@@ -110,7 +110,6 @@ contract IndexPool is ERC20 {
         require(amountOut >= amountOutMin, "IndexPool: AMOUNT_OUT_TOO_LOW");
     }
 
-    // TODO: check no reentrency
     function burn(uint amount) private returns(uint) {
         require(amount <= balanceOf(msg.sender), "IndexPool: INSUFFICIENT_BALANCE");
 

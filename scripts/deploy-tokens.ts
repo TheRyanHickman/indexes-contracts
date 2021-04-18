@@ -26,7 +26,6 @@ export const deployLEV = async (
     router,
     teamSharing
   );
-  console.log("LEV: ", lev.address);
   return lev;
 };
 

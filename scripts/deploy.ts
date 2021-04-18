@@ -164,4 +164,4 @@ type ContractAddresses = Record<
   }
 >;
 
-main();
+//main();

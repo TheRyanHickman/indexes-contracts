@@ -1,13 +1,14 @@
 import ERC20Artifact from "../artifacts/contracts/tokens/LEVToken.sol/LEVToken.json";
 import { addSlevMinter } from "./set-slev-minter";
 import { addresses } from "./deploy";
+import { deployMockToken } from "../test/token";
 import { deployPairWithPresets } from "./deploy-pair";
 import { ethers } from "hardhat";
 import { expandTo18Decimals } from "../test/utils";
 import { getPancakeRouter } from "../test/pancakeswap";
 
 export const getStakingPoolFactory = (putilities: string) => {
-  return ethers.getContractFactory("LEVStackingPool", {
+  return ethers.getContractFactory("StakingPool", {
     libraries: {
       PancakeswapUtilities: putilities,
     },
@@ -17,7 +18,6 @@ export const getStakingPoolFactory = (putilities: string) => {
 export const deployStakingPool = async (
   pancakeswapUtilities: string,
   SLEV: string,
-  pair: string,
   stakeToken: string,
   rewardTokens: string[],
   router: string
@@ -26,7 +26,6 @@ export const deployStakingPool = async (
   const stakingPool = await stakingFactory.deploy(
     SLEV,
     stakeToken,
-    pair,
     rewardTokens,
     rewardTokens.map((_) => expandTo18Decimals(1)),
     router
@@ -40,13 +39,10 @@ const ERC20 = async (addr: string) => {
 };
 
 export const deployStakingPools = async () => {
-  const [signer] = await ethers.getSigners();
+  const [owner] = await ethers.getSigners();
   const addrs = addresses.mainnet;
   const router = await getPancakeRouter(addrs.pancakeRouter);
-  //console.log(
-  //  "our balance LEV",
-  //  (await ERC20(addrs.LEV)).balanceOf(signer.address)
-  //);
+  const fakeBUSD = await deployMockToken("BUSD", "BUSD", owner.address);
 
   // const levslevlp = await deployPair(
   //   await ERC20(addrs.LEV),
@@ -58,43 +54,39 @@ export const deployStakingPools = async () => {
   // );
   //  const levslevlp = await router.getPair(addrs.LEV, addrs.SLEV);
   //  console.log(levslevlp);
-  // const stakingPoolLEV = await deployStakingPool(
-  //   addrs.pancakeUtilities,
-  //   addrs.SLEV,
-  //   ethers.constants.AddressZero,
-  //   addrs.LEV,
-  //   [addrs.LEV, addrs.tokens.BUSD],
-  //   addrs.pancakeRouter
-  // );
-  console.log(addrs);
+  const stakingPoolLEV = await deployStakingPool(
+    addrs.pancakeUtilities,
+    addrs.SLEV,
+    addrs.LEV,
+    [addrs.LEV, addrs.tokens.BUSD],
+    addrs.pancakeRouter
+  );
   const lp = await deployPairWithPresets(
     addrs.LEV,
-    addrs.tokens.BUSD,
+    //    addrs.tokens.BUSD,
+    fakeBUSD.address,
     router.address
   );
   const stakingPoolLEVBUSDLP = await deployStakingPool(
     addrs.pancakeUtilities,
     addrs.SLEV,
     lp,
-    lp,
     [addrs.LEV],
     addrs.pancakeRouter
   );
   await addSlevMinter(stakingPoolLEVBUSDLP);
-  //const stakingPoolLEVBNBDLP = await deployStakingPool(
-  //  addrs.pancakeUtilities,
-  //  addrs.SLEV,
-  //  addrs.tokens.levbnblp,
-  //  addrs.tokens.levbnblp,
-  //  [addrs.LEV],
-  //  addrs.pancakeRouter
-  //);
+  const stakingPoolLEVBNBDLP = await deployStakingPool(
+    addrs.pancakeUtilities,
+    addrs.SLEV,
+    addrs.tokens.levbnblp,
+    [addrs.LEV],
+    addrs.pancakeRouter
+  );
   const deployed = {
-    stakingPoolLEV: null,
+    stakingPoolLEV: stakingPoolLEV,
     stakingPoolLEVBUSDLP,
-    //  stakingPoolLEVBNBDLP,
+    stakingPoolLEVBNBDLP,
   };
-
   console.log(deployed);
   return deployed;
 };
@@ -125,4 +117,4 @@ const deployPairsForLEVSLEV = async () => {
   //);
 };
 
-//deployStakingPools();
+deployStakingPools();

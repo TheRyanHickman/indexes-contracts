@@ -56,25 +56,25 @@ contract IndexPool is ERC20 {
         emit CompositionChange(underlyingTokens, tokenWeights);
     }
 
-    function buyExactIndexForToken(uint amountOut, address paymentToken, uint amountInMax) external { // a rename, encore ce pseudo parametre en nom de fonction,  buyIndex is enought
+    function buyIndexWith(uint amountOut, address paymentToken, uint amountInMax) external {
         uint quote = getIndexQuoteWithFee(amountOut);
         ERC20(paymentToken).transferFrom(msg.sender, address(this), amountInMax);
         (, uint spent) = PancakeswapUtilities.buyToken(paymentToken, address(_WBNB), address(this), quote, _pancakeRouter);
         require(spent <= amountInMax, "IndexPool: INSUFFICIENT_AMOUNT_IN_MAX");
-        return _mint(amountOut, quote);
+        return _buyIndex(amountOut, quote);
     }
 
-    function buyExactIndexAmount(uint amountOut) external payable {
+    function buyIndex(uint amountOut) external payable {
         uint quote = getIndexQuoteWithFee(amountOut);
         uint amountIn = msg.value;
         require(quote <= amountIn, "IndexPool: INSUFFICIENT_AMOUNT_IN");
         _WBNB.deposit{value: quote}();
         (bool sent,) = msg.sender.call{ value: amountIn - quote }("");
         require(sent, "IndexPool: BNB_REFUND_FAIL");
-        return _mint(amountOut, quote);
+        return _buyIndex(amountOut, quote);
     }
 
-    function _mint(uint256 amountOut, uint256 amountIn) private { // ca mint pas, ca fait bcp plus.
+    function _buyIndex(uint256 amountOut, uint256 amountIn) private {
         uint256 totalTokensBought = 0;
         uint totalSpent = 0;
         for (uint256 i = 0; i < _underlyingTokens.length; i++) {
@@ -105,12 +105,7 @@ contract IndexPool is ERC20 {
         emit Mint(msg.sender, amountOutResult, totalSpent);
     }
 
-    function sellIndex(uint amountIn, uint amountOutMin) external {
-        uint amountOut = burn(amountIn);
-        require(amountOut >= amountOutMin, "IndexPool: AMOUNT_OUT_TOO_LOW");
-    }
-
-    function burn(uint amount) private returns(uint) { // ca burn pas non plus, ca fait bcp plus que burn
+    function sellIndex(uint amount, uint amountOutMin) external returns(uint) {
         require(amount <= balanceOf(msg.sender), "IndexPool: INSUFFICIENT_BALANCE");
 
         uint256 totalTokensSold = 0;
@@ -144,6 +139,7 @@ contract IndexPool is ERC20 {
         (bool sent,) = msg.sender.call{ value: amountToPayUser }("");
         require(sent, "IndexPool: SEND_BNB_FAIL");
         emit Burn(msg.sender, amountToBurn, amountToPayUser);
+        require(amountToPayUser >= amountOutMin, "IndexPool: AMOUNT_OUT_TOO_LOW");
         return amountToPayUser;
     }
 

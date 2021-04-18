@@ -1,9 +1,14 @@
-import { deployPancakeExchange, deployPancakeUtilities } from "./pancakeswap";
+import {
+  deployPair,
+  deployPancakeExchange,
+  deployPancakeUtilities,
+} from "./pancakeswap";
 
 import { BigNumber } from "@ethersproject/bignumber";
 import { Contract } from "@ethersproject/contracts";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import { Wallet } from "@ethersproject/wallet";
+import { deployLEV } from "../scripts/deploy-tokens";
 import { deployMockToken } from "./token";
 import { ethers } from "hardhat";
 import { expandTo18Decimals } from "./utils";
@@ -12,17 +17,18 @@ import poolAbi from "../artifacts/contracts/indexes/IndexPool.sol/IndexPool.json
 
 describe("Pool Controller", function () {
   let owner: SignerWithAddress, devTeam: SignerWithAddress;
-  let mockLEV: Contract,
+  let LEV: Contract,
     mockWETH: Contract,
     mockSLEV: Contract,
     mockBUSD: Contract,
     mockBTC: Contract,
+    mockLEV: Contract,
     WBNB: Contract,
     pancakeRouter: Contract;
 
   before(async () => {
     [owner] = await ethers.getSigners();
-    mockLEV = await deployMockToken("Fake LEV", "VEL", owner.address);
+    const pancakeswapUtilities = (await deployPancakeUtilities()) as Contract;
     mockSLEV = await deployMockToken("Fake SLEV", "VELS", owner.address);
     mockBUSD = await deployMockToken("Fake BUSD", "DSUB", owner.address);
     mockBTC = await deployMockToken("Fake BTC", "CTB", owner.address);
@@ -36,13 +42,32 @@ describe("Pool Controller", function () {
         contract: mockBTC,
         liquidity: expandTo18Decimals(200),
       },
-      LEV: {
-        contract: mockLEV,
-        liquidity: expandTo18Decimals(200),
-      },
     });
     pancakeRouter = exchange.pancakeRouter;
     WBNB = exchange.WBNB;
+    LEV = await deployLEV(
+      pancakeswapUtilities.address,
+      owner.address,
+      pancakeRouter.address,
+      mockSLEV.address,
+      owner.address
+    );
+    await deployPair(
+      WBNB,
+      expandTo18Decimals(500),
+      LEV,
+      expandTo18Decimals(200),
+      pancakeRouter,
+      owner
+    );
+    await deployPair(
+      LEV,
+      expandTo18Decimals(500),
+      mockSLEV,
+      expandTo18Decimals(200),
+      pancakeRouter,
+      owner
+    );
   });
 
   it("Instantiates an Index Pool", async () => {
@@ -54,7 +79,7 @@ describe("Pool Controller", function () {
     });
     const controllerContract = await Controller.deploy(
       WBNB.address,
-      mockLEV.address,
+      LEV.address,
       mockSLEV.address,
       pancakeRouter.address,
       owner.address
@@ -73,6 +98,8 @@ describe("Pool Controller", function () {
     const price = await pool.getIndexQuote(expandTo18Decimals(1));
     expect(price).to.equal(BigNumber.from("196304132126727219"));
     const priceWFee = await pool.getIndexQuoteWithFee(expandTo18Decimals(1));
-    await pool.buyExactIndexAmount(expandTo18Decimals(1), { value: priceWFee });
+    await pool.buyIndex(expandTo18Decimals(1), {
+      value: priceWFee,
+    });
   });
 });

@@ -4,13 +4,14 @@ pragma solidity ^0.8.0;
 import "./IndexPool.sol";
 import "../interfaces/IBEP20.sol";
 import "../utilities/PancakeswapUtilities.sol";
+import "../tokens/LEVToken.sol";
 import "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
 import "hardhat/console.sol";
 
 contract IndexController {
     string[] CATEGORIES = ["Popular"];
     IBEP20 immutable _WBNB;
-    IBEP20 immutable _LEV;
+    LEVToken immutable _LEV;
     IBEP20 immutable _SLEV;
     IUniswapV2Router02 private immutable _pancakeRouter;
     IndexPool[] public pools;
@@ -31,7 +32,7 @@ contract IndexController {
         address teamSharing
     ) {
         _WBNB = IBEP20(__WBNB);
-        _LEV = IBEP20(LEV);
+        _LEV = LEVToken(LEV);
         _SLEV = IBEP20(SLEV);
         _pancakeRouter = IUniswapV2Router02(pancakeRouter);
         _teamSharing = teamSharing;
@@ -69,50 +70,27 @@ contract IndexController {
         uint256 remainingToRedistribute = totalFees;
         uint256 buybackPart =
             (remainingToRedistribute * buybackRewardPart) / 1000;
-        _burnLEV(buybackPart);
+        // We buy LEV that we can't spend (=burn)
+        _buyLEV(buybackPart, address(this));
         remainingToRedistribute -= buybackPart;
         uint256 devTeamAmount =
             (remainingToRedistribute * devTeamRewardPart) / 1000;
         _WBNB.transfer(_teamSharing, devTeamAmount);
         remainingToRedistribute -= devTeamAmount;
-        // _buyLevForSLEV(remainingToRedistribute); @Matthieu said no
+        _LEV.updateTotalSupply();
         emit RedistributeFees(totalFees);
     }
 
     /*
      ** Some of the index purchase fees are used to buy back LEV and reduce the total supply
      */
-    function _burnLEV(uint256 amountBNB) private { // wrong name "Burn" for the action
+    function _buyLEV(uint256 amountBNB, address to) private {
         PancakeswapUtilities.sellToken(
             address(_WBNB),
             address(_LEV),
-            address(_pancakeRouter),
+            to,
             amountBNB,
             _pancakeRouter
-        );
-    }
-
-    /*
-     ** Some of the index purchase fees are used to buy SLEV (token minted for stakers) in order to reward staking users
-     */
-    function _buyLevForSLEV(uint256 amountBNB) private { // wtf?  the name ? buy dollar for euro ? is that clear for you ? because absolutely not for me
-        IUniswapV2Router02 router = IUniswapV2Router02(_pancakeRouter);
-        PancakeswapUtilities.buyToken(
-            address(_WBNB),
-            address(_LEV),
-            address(this),
-            amountBNB,
-            router
-        );
-        uint256 LEVBalance = _LEV.balanceOf(address(this));
-
-        // burn the SLEV to raise its price against LEV  // Apparently its still not a burn.
-        PancakeswapUtilities.sellToken(
-            address(_SLEV),
-            address(_LEV),
-            address(0),
-            LEVBalance,
-            router
         );
     }
 }

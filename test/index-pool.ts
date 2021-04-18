@@ -1,10 +1,15 @@
-import { deployPancakeExchange, deployPancakeUtilities } from "./pancakeswap";
+import {
+  deployPair,
+  deployPancakeExchange,
+  deployPancakeUtilities,
+} from "./pancakeswap";
 import { expandTo18Decimals, from18Decimals, logBalanceOf } from "./utils";
 
 import { BigNumber } from "@ethersproject/bignumber";
 import { Contract } from "@ethersproject/contracts";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import { computeTargetWeights } from "../scripts/calculate-weights";
+import { deployLEV } from "../scripts/deploy-tokens";
 import { deployMockToken } from "./token";
 import { ethers } from "hardhat";
 import { expect } from "chai";
@@ -16,7 +21,7 @@ describe("Index Pool", function () {
     mockWETH: Contract,
     mockBTC: Contract,
     mockBUSD: Contract,
-    mockLEV: Contract,
+    LEV: Contract,
     mockSLEV: Contract,
     mock1: Contract,
     mock2: Contract,
@@ -39,7 +44,6 @@ describe("Index Pool", function () {
     mockWETH = await deployMockToken("Test WETH", "TWETH", owner.address);
     mockBTC = await deployMockToken("Test BTC", "TBTC", owner.address);
     mockBUSD = await deployMockToken("Test BUSD", "TBUSD", owner.address);
-    mockLEV = await deployMockToken("Test LEV", "LEV", owner.address);
     mockSLEV = await deployMockToken("Test SLEV", "TSLEV", owner.address);
     mock1 = await deployMockToken("test1", "T1", owner.address);
     mock2 = await deployMockToken("test1", "T2", owner.address);
@@ -58,10 +62,6 @@ describe("Index Pool", function () {
       },
       BUSD: {
         contract: mockBUSD,
-        liquidity: expandTo18Decimals(200),
-      },
-      LEV: {
-        contract: mockLEV,
         liquidity: expandTo18Decimals(200),
       },
       BTC: {
@@ -113,6 +113,29 @@ describe("Index Pool", function () {
     pancakeRouter = exchange.pancakeRouter;
     pancakeFactory = exchange.pancakeFactory;
     WBNB = exchange.WBNB;
+    LEV = await deployLEV(
+      pancakeswapUtilities.address,
+      owner.address,
+      pancakeRouter.address,
+      mockSLEV.address,
+      owner.address
+    );
+    await deployPair(
+      WBNB,
+      expandTo18Decimals(500),
+      LEV,
+      expandTo18Decimals(200),
+      pancakeRouter,
+      owner
+    );
+    await deployPair(
+      LEV,
+      expandTo18Decimals(500),
+      mockSLEV,
+      expandTo18Decimals(200),
+      pancakeRouter,
+      owner
+    );
 
     const Controller = await ethers.getContractFactory("IndexController", {
       libraries: {
@@ -121,7 +144,7 @@ describe("Index Pool", function () {
     });
     indexController = await Controller.deploy(
       WBNB.address,
-      mockLEV.address,
+      LEV.address,
       mockSLEV.address,
       pancakeRouter.address,
       devTeam.address
@@ -160,7 +183,7 @@ describe("Index Pool", function () {
     const pool = await deployMockIndexPool("TNDX");
     const quote = await pool.getIndexQuoteWithFee(expandTo18Decimals(1));
     const balanceBefore = await owner.getBalance();
-    const tx = await pool.buyExactIndexAmount(expandTo18Decimals(1), {
+    const tx = await pool.buyIndex(expandTo18Decimals(1), {
       value: quote,
     });
     const receipt = await tx.wait();
@@ -178,7 +201,7 @@ describe("Index Pool", function () {
     const price = await pool.getIndexQuoteWithFee(expandTo18Decimals(2));
     // try to buy 2TNDX
     const balanceBNBBefore = await owner.getBalance();
-    await pool.buyExactIndexAmount(expandTo18Decimals(2), { value: price });
+    await pool.buyIndex(expandTo18Decimals(2), { value: price });
 
     const ourBalance = await pool.balanceOf(owner.address);
     await pool.sellIndex(ourBalance, price.mul(95).div(100));
@@ -200,7 +223,7 @@ describe("Index Pool", function () {
     const price = await pool.getIndexQuoteWithFee(expandTo18Decimals(2));
     const devTeamBalanceBefore = await WBNB.balanceOf(devTeam.address);
     const priceWOFee = await pool.getIndexQuote(expandTo18Decimals(2));
-    await pool.buyExactIndexAmount(expandTo18Decimals(2), {
+    await pool.buyIndex(expandTo18Decimals(2), {
       value: price,
     });
     const devTeamBalanceAfter = await WBNB.balanceOf(devTeam.address);
@@ -248,7 +271,7 @@ describe("Index Pool", function () {
     const quote = await poolContract.getIndexQuoteWithFee(
       expandTo18Decimals(1).div(100)
     );
-    await poolContract.buyExactIndexAmount(expandTo18Decimals(1).div(100), {
+    await poolContract.buyIndex(expandTo18Decimals(1).div(100), {
       value: quote.mul(102).div(100),
     });
     expect(await poolContract.balanceOf(owner.address)).to.equal(
@@ -267,7 +290,7 @@ describe("Index Pool", function () {
     );
     const priceUSD = expandTo18Decimals(price).div(quoteForBUSD);
     await mockBUSD.approve(pool.address, priceUSD.mul(110).div(100));
-    pool.buyExactIndexForToken(
+    pool.buyIndexWith(
       expandTo18Decimals(2),
       mockBUSD.address,
       priceUSD.mul(110).div(100)
@@ -308,7 +331,7 @@ describe("Index Pool", function () {
 
   const buyIndex = async (index: Contract, amount: number, user = owner) => {
     const quote = await index.getIndexQuoteWithFee(expandTo18Decimals(11));
-    return index.connect(user).buyExactIndexAmount(expandTo18Decimals(amount), {
+    return index.connect(user).buyIndex(expandTo18Decimals(amount), {
       value: quote,
     });
   };

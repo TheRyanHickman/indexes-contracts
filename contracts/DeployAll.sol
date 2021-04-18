@@ -13,8 +13,8 @@ contract DeployAll {
 
     event DeployContract(string name, address addr);
 
-    address constant _BUSD = 0xe9e7CEA3DedcA5984780Bafc599bD69ADd087D56; 
-    address constant _PANCAKE_ROUTER = 0x05fF2B0DB69458A0750badebc4f9e13aDd608C7F; 
+    address constant _BUSD = 0xe9e7CEA3DedcA5984780Bafc599bD69ADd087D56;
+    address constant _PANCAKE_ROUTER = 0x05fF2B0DB69458A0750badebc4f9e13aDd608C7F;
     address constant _WBNB = 0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c;
 
     uint constant initialLevSlevLiquidity = 10000e18;

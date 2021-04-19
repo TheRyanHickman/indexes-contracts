@@ -9,6 +9,7 @@ import { deployMockToken } from "../test/token";
 import { deployPairWithPresets } from "./deploy-pair";
 import { ethers } from "hardhat";
 import { expandTo18Decimals } from "../test/utils";
+import hre from "hardhat";
 
 export const getStakingControllerFactory = (putilities: string) => {
   return ethers.getContractFactory("StakingPoolController", {
@@ -46,13 +47,22 @@ export const deployStakingPools = async () => {
     addrs.pancakeUtilities
   );
   const stakingController = await stakingFactory.deploy(owner.address);
-  const fakeBUSD = await deployMockToken("BUSD", "BUSD", owner.address);
+  addrs.SLEV = await stakingController.SLEV();
 
   const levslevlp = await deployPair(
     await ERC20(addrs.LEV),
     expandTo18Decimals(1000),
     await ERC20(addrs.SLEV),
-    expandTo18Decimals(1000),
+    expandTo18Decimals(10000),
+    router,
+    owner
+  );
+
+  await deployPair(
+    await ERC20(addrs.tokens.BUSD),
+    expandTo18Decimals(40),
+    await ERC20(addrs.SLEV),
+    expandTo18Decimals(10000),
     router,
     owner
   );
@@ -64,15 +74,19 @@ export const deployStakingPools = async () => {
     [addrs.LEV, addrs.tokens.BUSD],
     [1, 1]
   );
-  const lp = await deployPairWithPresets(
-    addrs.LEV,
-    //    addrs.tokens.BUSD,
-    fakeBUSD.address,
-    router.address
+  const lp = await deployPair(
+    await ERC20(addrs.tokens.BUSD),
+    expandTo18Decimals(40),
+    await ERC20(addrs.LEV),
+    expandTo18Decimals(10000),
+    router,
+    owner
   );
-  const stakingPoolLEVBUSDLP = await deployStakingPool(stakingController, lp, [
-    addrs.LEV,
-  ]);
+  const stakingPoolLEVBUSDLP = await deployStakingPool(
+    stakingController,
+    lp.address,
+    [addrs.LEV]
+  );
   const stakingPoolLEVBNBDLP = await deployStakingPool(
     stakingController,
     addrs.tokens.levbnblp,

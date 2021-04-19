@@ -79,7 +79,7 @@ contract StakingPool {
           return 0;
         RewardTokenInfo storage tokenInfo = _rewardTokenMap[token];
         uint256 multiplier = tokenInfo.multiplier;
-        uint256 blockRewards = (blockNumber - staker.lastUpdateBlock) * multiplier;
+        uint256 blockRewards = (blockNumber - staker.lastUpdateBlock) * multiplier * 1e18;
         return staker.rewards[tokenInfo.index] + (blockRewards * staker.stakedAmount) / totalStaked;
     }
 
@@ -182,9 +182,7 @@ contract StakingPool {
         uint totalRewardSLEV = getCurrentReward(wallet, token);
         if (totalRewardSLEV == 0)
             return 0;
-        console.log("Router:", address(_router));
         IUniswapV2Pair pair = IUniswapV2Pair(PancakeswapUtilities.getPair(token, address(_SLEV), _router.factory()));
-        console.log("Done requesting facto");
         (uint reservesA, uint reservesB) = PancakeswapUtilities.getReservesOrdered(pair, token, address(_SLEV));
         return _router.quote(totalRewardSLEV, reservesB, reservesA);
     }

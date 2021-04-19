@@ -1,14 +1,17 @@
+import * as R from "ramda";
+
+import { deployPair, getPancakeRouter } from "../test/pancakeswap";
+
+import { Contract } from "@ethersproject/contracts";
 import ERC20Artifact from "../artifacts/contracts/tokens/LEVToken.sol/LEVToken.json";
-import { addSlevMinter } from "./set-slev-minter";
 import { addresses } from "./deploy";
 import { deployMockToken } from "../test/token";
 import { deployPairWithPresets } from "./deploy-pair";
 import { ethers } from "hardhat";
 import { expandTo18Decimals } from "../test/utils";
-import { getPancakeRouter } from "../test/pancakeswap";
 
-export const getStakingPoolFactory = (putilities: string) => {
-  return ethers.getContractFactory("StakingPool", {
+export const getStakingControllerFactory = (putilities: string) => {
+  return ethers.getContractFactory("StakingPoolController", {
     libraries: {
       PancakeswapUtilities: putilities,
     },
@@ -16,21 +19,18 @@ export const getStakingPoolFactory = (putilities: string) => {
 };
 
 export const deployStakingPool = async (
-  pancakeswapUtilities: string,
-  SLEV: string,
+  stakingController: Contract,
   stakeToken: string,
   rewardTokens: string[],
-  router: string
+  multipliers = [1]
 ) => {
-  const stakingFactory = await getStakingPoolFactory(pancakeswapUtilities);
-  const stakingPool = await stakingFactory.deploy(
-    SLEV,
+  const tx = await stakingController.deployStakingPool(
     stakeToken,
     rewardTokens,
-    rewardTokens.map((_) => expandTo18Decimals(1)),
-    router
+    multipliers
   );
-  return stakingPool.address;
+  const receipt = await tx.wait();
+  return receipt.events[0].args[0];
 };
 
 const ERC20 = async (addr: string) => {
@@ -42,24 +42,27 @@ export const deployStakingPools = async () => {
   const [owner] = await ethers.getSigners();
   const addrs = addresses.mainnet;
   const router = await getPancakeRouter(addrs.pancakeRouter);
+  const stakingFactory = await getStakingControllerFactory(
+    addrs.pancakeUtilities
+  );
+  const stakingController = await stakingFactory.deploy(owner.address);
   const fakeBUSD = await deployMockToken("BUSD", "BUSD", owner.address);
 
-  // const levslevlp = await deployPair(
-  //   await ERC20(addrs.LEV),
-  //   expandTo18Decimals(1000),
-  //   await ERC20(addrs.SLEV),
-  //   expandTo18Decimals(1000),
-  //   router,
-  //   signer
-  // );
+  const levslevlp = await deployPair(
+    await ERC20(addrs.LEV),
+    expandTo18Decimals(1000),
+    await ERC20(addrs.SLEV),
+    expandTo18Decimals(1000),
+    router,
+    owner
+  );
   //  const levslevlp = await router.getPair(addrs.LEV, addrs.SLEV);
   //  console.log(levslevlp);
   const stakingPoolLEV = await deployStakingPool(
-    addrs.pancakeUtilities,
-    addrs.SLEV,
+    stakingController,
     addrs.LEV,
     [addrs.LEV, addrs.tokens.BUSD],
-    addrs.pancakeRouter
+    [1, 1]
   );
   const lp = await deployPairWithPresets(
     addrs.LEV,
@@ -67,31 +70,23 @@ export const deployStakingPools = async () => {
     fakeBUSD.address,
     router.address
   );
-  const stakingPoolLEVBUSDLP = await deployStakingPool(
-    addrs.pancakeUtilities,
-    addrs.SLEV,
-    lp,
-    [addrs.LEV],
-    addrs.pancakeRouter
-  );
-  await addSlevMinter(stakingPoolLEVBUSDLP);
+  const stakingPoolLEVBUSDLP = await deployStakingPool(stakingController, lp, [
+    addrs.LEV,
+  ]);
   const stakingPoolLEVBNBDLP = await deployStakingPool(
-    addrs.pancakeUtilities,
-    addrs.SLEV,
+    stakingController,
     addrs.tokens.levbnblp,
-    [addrs.LEV],
-    addrs.pancakeRouter
+    [addrs.LEV]
   );
   const deployed = {
     stakingPoolLEV: stakingPoolLEV,
     stakingPoolLEVBUSDLP,
     stakingPoolLEVBNBDLP,
+    stakingController,
   };
-  console.log(deployed);
+  console.log(R.omit(["stakingController"], deployed));
   return deployed;
 };
-
-// deployStakingPools();
 
 const deployBUSDLEVPool = async () => {
   const addrs = addresses.mainnet;

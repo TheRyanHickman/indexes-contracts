@@ -29,7 +29,7 @@ export let addresses: ContractAddresses = {
       WETH: "",
       BUSD: "0xe9e7cea3dedca5984780bafc599bd69add087d56",
       WBNB: "0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c",
-      levbnblp: "",
+      levbnblp: "0x1853685FCD60CAbf0285CD407D6A0De1BEbc8aa4",
       levbusdlp: "",
     },
   },
@@ -38,27 +38,14 @@ export let addresses: ContractAddresses = {
 export const main = async () => {
   const [owner] = await ethers.getSigners();
   const utilities = await deployPancakeUtilities();
-  const DeployAll = await ethers.getContractFactory("DeployAll", {
-    libraries: {
-      PancakeswapUtilities: utilities.address,
-    },
-  });
-  const ctr = await DeployAll.deploy({
-    gasLimit: 9500000,
-  });
-  const receipt = await ctr.deployTransaction.wait();
-  console.log(receipt);
-  return;
-
   const network = "mainnet";
   const addrs = addresses[network];
   const router = await getPancakeRouter(addrs.pancakeRouter);
 
   console.log(`Deploying all contracts to ${network} by ${owner.address}...`);
-  //const utilities = await deployPancakeUtilities();
   addrs.pancakeUtilities = utilities.address;
-  const slev = await deploySLEV(owner.address);
-  addrs.SLEV = slev.address;
+  const { stakingController } = await deployStakingPools();
+  addrs.SLEV = await stakingController.SLEV();
   const teamSharing = await deployTeamSharing(owner.address, [
     addrs.SLEV,
     addrs.tokens.BUSD,
@@ -75,18 +62,6 @@ export const main = async () => {
 
   const indexController = await deployController();
   addrs.indexController = indexController.address;
-  try {
-    await deployPair(
-      lev,
-      expandTo18Decimals(1000),
-      slev,
-      expandTo18Decimals(1000),
-      router,
-      owner
-    );
-  } catch (err) {
-    console.log("weirdly fails.");
-  }
   const { stakingPoolLEV } = await deployStakingPools();
   const deployed = {
     utilities: addrs.pancakeUtilities,

@@ -4,26 +4,28 @@ import "contracts/staking/StakingPool.sol";
 contract StakingPoolController {
     address constant UNISWAP_ROUTER = 0x05fF2B0DB69458A0750badebc4f9e13aDd608C7F;
     address _owner;
-    SLEVToken _SLEV;
+    SLEVToken public SLEV;
     IUniswapV2Router02 _router;
+
+    event DeployStakingPool(address pool);
 
     constructor(address owner) {
         _owner = owner;
-        _SLEV = new SLEVToken(address(this), 0);
+        SLEV = new SLEVToken(address(this), 0);
         _router = IUniswapV2Router02(UNISWAP_ROUTER);
     }
 
     modifier ownerOnly {
-        require(msg.sender == _owner, "STACKING_CONTROLLER: NOT_THE_OWNER");
+        require(msg.sender == _owner, "STAKING_CONTROLLER: NOT_THE_OWNER");
         _;
     }
 
-    function deployStackingPool(
+    function deployStakingPool(
         address stakeToken, 
         address[] memory rewardTokens,
         uint256[] memory multiplier) external ownerOnly {
-        StakingPool pool = new StakingPool(address(_SLEV), stakeToken, rewardTokens, multiplier, _router);
-        _SLEV.addMinter(address(pool));
+        StakingPool pool = new StakingPool(address(SLEV), stakeToken, rewardTokens, multiplier, _router);
+        SLEV.addMinter(address(pool));
+        emit DeployStakingPool(address(pool));
     }
-
 }

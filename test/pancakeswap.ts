@@ -26,7 +26,10 @@ export const deployPair = async (
     tokenA.address,
     tokenB.address
   );
-  if (hre.network.name !== "hardhat" && possiblePair) {
+  if (
+    hre.network.name !== "hardhat" &&
+    possiblePair !== "0x0000000000000000000000000000000000000000"
+  ) {
     console.log("Pair already exists at", possiblePair);
     return new ethers.Contract(
       possiblePair,

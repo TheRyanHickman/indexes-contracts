@@ -4,21 +4,18 @@ pragma solidity ^0.8.0;
 import "./IndexPool.sol";
 import "../interfaces/IBEP20.sol";
 import "../utilities/PancakeswapUtilities.sol";
-import "../tokens/LEVToken.sol";
 import "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
 import "hardhat/console.sol";
 
 contract IndexController {
     string[] CATEGORIES = ["Popular"];
     IBEP20 immutable _WBNB;
-    LEVToken immutable _LEV;
-    IBEP20 immutable _SLEV;
+    address immutable _LEV;
     IUniswapV2Router02 private immutable _pancakeRouter;
     IndexPool[] public pools;
 
-    uint256 constant buybackRewardPart = 600;
+    uint256 constant buybackRewardPart = 750;
     uint256 constant devTeamRewardPart = 250;
-    uint256 constant stackingRewardPart = 150;
     address immutable _teamSharing;
 
     event DeployIndex(address index);
@@ -27,13 +24,11 @@ contract IndexController {
     constructor(
         address __WBNB,
         address LEV,
-        address SLEV,
         address pancakeRouter,
         address teamSharing
     ) {
         _WBNB = IBEP20(__WBNB);
-        _LEV = LEVToken(LEV);
-        _SLEV = IBEP20(SLEV);
+        _LEV = LEV;
         _pancakeRouter = IUniswapV2Router02(pancakeRouter);
         _teamSharing = teamSharing;
     }
@@ -77,7 +72,6 @@ contract IndexController {
             (remainingToRedistribute * devTeamRewardPart) / 1000;
         _WBNB.transfer(_teamSharing, devTeamAmount);
         remainingToRedistribute -= devTeamAmount;
-        _LEV.updateTotalSupply();
         emit RedistributeFees(totalFees);
     }
 
@@ -87,7 +81,7 @@ contract IndexController {
     function _buyLEV(uint256 amountBNB, address to) private {
         PancakeswapUtilities.sellToken(
             address(_WBNB),
-            address(_LEV),
+            _LEV,
             to,
             amountBNB,
             _pancakeRouter

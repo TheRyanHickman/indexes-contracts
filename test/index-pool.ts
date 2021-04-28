@@ -22,7 +22,6 @@ describe("Index Pool", function () {
     mockBTC: Contract,
     mockBUSD: Contract,
     LEV: Contract,
-    mockSLEV: Contract,
     mock1: Contract,
     mock2: Contract,
     mock3: Contract,
@@ -44,7 +43,6 @@ describe("Index Pool", function () {
     mockWETH = await deployMockToken("Test WETH", "TWETH", owner.address);
     mockBTC = await deployMockToken("Test BTC", "TBTC", owner.address);
     mockBUSD = await deployMockToken("Test BUSD", "TBUSD", owner.address);
-    mockSLEV = await deployMockToken("Test SLEV", "TSLEV", owner.address);
     mock1 = await deployMockToken("test1", "T1", owner.address);
     mock2 = await deployMockToken("test1", "T2", owner.address);
     mock3 = await deployMockToken("test1", "T3", owner.address);
@@ -113,25 +111,11 @@ describe("Index Pool", function () {
     pancakeRouter = exchange.pancakeRouter;
     pancakeFactory = exchange.pancakeFactory;
     WBNB = exchange.WBNB;
-    LEV = await deployLEV(
-      pancakeswapUtilities.address,
-      owner.address,
-      pancakeRouter.address,
-      mockSLEV.address,
-      owner.address
-    );
+    LEV = await deployLEV(owner);
     await deployPair(
       WBNB,
       expandTo18Decimals(500),
       LEV,
-      expandTo18Decimals(200),
-      pancakeRouter,
-      owner
-    );
-    await deployPair(
-      LEV,
-      expandTo18Decimals(500),
-      mockSLEV,
       expandTo18Decimals(200),
       pancakeRouter,
       owner
@@ -145,7 +129,6 @@ describe("Index Pool", function () {
     indexController = await Controller.deploy(
       WBNB.address,
       LEV.address,
-      mockSLEV.address,
       pancakeRouter.address,
       devTeam.address
     );
@@ -228,7 +211,7 @@ describe("Index Pool", function () {
     });
     const devTeamBalanceAfter = await WBNB.balanceOf(devTeam.address);
     const mintFees = devTeamBalanceAfter.sub(devTeamBalanceBefore);
-    expect(mintFees).to.equal("15943440968192");
+    expect(mintFees).to.equal("8705584529958");
 
     // burn half of what we have
     await pool.sellIndex(expandTo18Decimals(1), price.mul(48).div(100));

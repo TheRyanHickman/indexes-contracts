@@ -1,154 +1,107 @@
-import {
-  deployPair,
-  deployPancakeExchange,
-  deployPancakeUtilities,
-} from "./pancakeswap";
 import { expandTo18Decimals, mineBlock } from "./utils";
 
 import { BigNumber } from "@ethersproject/bignumber";
 import { Contract } from "@ethersproject/contracts";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import { deployMockToken } from "./token";
-import { deploySLEV } from "../scripts/deploy-tokens";
 import { ethers } from "hardhat";
 import { expect } from "chai";
 
 describe("Staking pools", function () {
-  let owner: SignerWithAddress, devTeam: SignerWithAddress;
+  let owner: SignerWithAddress,
+    alice: SignerWithAddress,
+    bob: SignerWithAddress,
+    devTeam: SignerWithAddress;
+  let masterChef: Contract;
+  let sushiBar: Contract;
   let LEV: Contract,
     levPair: Contract,
-    stackingPoolLev: Contract,
     SLEV: Contract,
-    mockLEV: Contract,
+    SBUSD: Contract,
     mockBUSD: Contract,
     pancakeRouter: Contract;
 
   before(async () => {
-    [owner] = await ethers.getSigners();
-    SLEV = (await deploySLEV(owner.address)) as Contract;
-    mockLEV = await deployMockToken("Fake LEV", "VEL", owner.address);
+    [owner, alice, bob] = await ethers.getSigners();
+    const LevFactory = await ethers.getContractFactory("LEVToken");
+    LEV = await LevFactory.deploy(owner.address, expandTo18Decimals(100000));
+    const BarFactory = await ethers.getContractFactory("RewardBar");
+    SLEV = await BarFactory.deploy("LEV rewards", "SLEV", LEV.address);
     mockBUSD = await deployMockToken("Fake BUSD", "DSUB", owner.address);
-    const exchange = await deployPancakeExchange(owner, {
-      BUSD: {
-        contract: mockBUSD,
-        liquidity: expandTo18Decimals(10000),
-      },
-    });
-    pancakeRouter = exchange.pancakeRouter;
-    levPair = await deployPair(
-      mockLEV,
-      expandTo18Decimals(100000),
-      SLEV,
-      expandTo18Decimals(10000),
-      pancakeRouter,
-      owner
-    );
-    const slevPair = await deployPair(
-      mockBUSD,
-      expandTo18Decimals(1000),
-      SLEV,
-      expandTo18Decimals(10000),
-      pancakeRouter,
-      owner
-    );
+    SBUSD = await BarFactory.deploy("BUSD rewards", "SBUSD", mockBUSD.address);
 
-    const pancakeswapUtilities = (await deployPancakeUtilities()) as Contract;
-    const StackingPoolFactory = await ethers.getContractFactory("StakingPool", {
-      libraries: {
-        PancakeswapUtilities: pancakeswapUtilities.address,
-      },
-    });
-    stackingPoolLev = await StackingPoolFactory.deploy(
+    const MasterChefFactory = await ethers.getContractFactory("MasterChef");
+    masterChef = await MasterChefFactory.deploy(
+      LEV.address,
       SLEV.address,
-      mockLEV.address,
-      [mockLEV.address, mockBUSD.address],
-      [expandTo18Decimals(1), expandTo18Decimals(1)],
-      pancakeRouter.address
+      SBUSD.address,
+      owner.address,
+      expandTo18Decimals(5),
+      await ethers.provider.getBlockNumber()
     );
-    await SLEV.setMinters([owner.address, stackingPoolLev.address]);
+    await LEV.transferOwnership(masterChef.address);
+    await SLEV.transferOwnership(masterChef.address);
+    await SBUSD.transferOwnership(masterChef.address);
   });
 
   it("Should returns 0 to stacking rewards", async () => {
-    const rewards = await stackingPoolLev.getCurrentRewards(
-      owner.address,
-      mockLEV.address
-    );
+    const rewards = await masterChef.pendingCake(0, owner.address);
     expect(rewards).to.equal(ethers.constants.Zero);
-    expect(await stackingPoolLev.getStakedAmount()).to.equal(
-      ethers.constants.Zero
-    );
+    expect(await SLEV.balanceOf(owner.address)).to.equal(ethers.constants.Zero);
   });
 
-  it("Generates rewards in SLEV", async () => {
-    const balanceLEVBefore = await mockLEV.balanceOf(owner.address);
-    await mockLEV.approve(stackingPoolLev.address, expandTo18Decimals(20));
-    await stackingPoolLev.stack(expandTo18Decimals(20));
-    expect(await mockLEV.balanceOf(owner.address)).to.equal(
-      balanceLEVBefore.sub(expandTo18Decimals(20))
-    );
-    expect(await stackingPoolLev.getStakedAmount()).to.equal(
+  it("Gets rewarded with LEV and BUSD", async () => {
+    await mockBUSD.transfer(alice.address, expandTo18Decimals(12000));
+    await mockBUSD.transfer(SBUSD.address, expandTo18Decimals(1000));
+    await LEV.approve(masterChef.address, expandTo18Decimals(20));
+    await masterChef.enterStaking(expandTo18Decimals(20));
+    expect(await SLEV.balanceOf(owner.address)).to.equal(
       expandTo18Decimals(20)
     );
     await mineBlock(owner.provider);
     await mineBlock(owner.provider);
+    await mineBlock(owner.provider);
 
-    await mockLEV.approve(stackingPoolLev.address, expandTo18Decimals(1));
-    await stackingPoolLev.stack(expandTo18Decimals(1));
-    await mineBlock(owner.provider);
-    expect(await stackingPoolLev.getStakedAmount()).to.equal(
-      expandTo18Decimals(21)
-    );
-    expect(
-      await stackingPoolLev.getCurrentRewards(owner.address, mockLEV.address)
-    ).to.equal(expandTo18Decimals(52));
-  });
-
-  it("Gets rewarded with LEV", async () => {
-    await mockLEV.approve(stackingPoolLev.address, expandTo18Decimals(20));
-    await stackingPoolLev.stack(expandTo18Decimals(12));
-    await mineBlock(owner.provider);
-    await mineBlock(owner.provider);
-    await mineBlock(owner.provider);
-    const balanceLEVBefore = await mockLEV.balanceOf(owner.address);
-    const availableRewards = await stackingPoolLev.getCurrentRewards(
-      owner.address,
-      mockLEV.address
-    );
-    await stackingPoolLev.collectAllRewards();
-    const balanceLEVAfter = await mockLEV.balanceOf(owner.address);
+    const balanceLEVBefore = await LEV.balanceOf(owner.address);
+    await masterChef.updatePool(0);
+    const availableRewards = await masterChef.pendingCake(0, owner.address);
+    const rewardBUSD = await masterChef.getRewardsBUSD();
+    expect(rewardBUSD).to.equal(expandTo18Decimals(1000));
+    await masterChef.leaveStaking(0);
+    const balanceLEVAfter = await LEV.balanceOf(owner.address);
     const difference = balanceLEVAfter.sub(balanceLEVBefore);
-    expect(difference).to.equal(BigNumber.from("128589862143326522172"));
-    expect(availableRewards).to.equal(BigNumber.from("119142857142857142850"));
+    expect(availableRewards).to.equal(expandTo18Decimals(16));
+    expect(difference).to.equal(expandTo18Decimals(25));
+    const balanceBUSD = await mockBUSD.balanceOf(owner.address);
+    expect(balanceBUSD).to.equal(
+      expandTo18Decimals(100000000).sub(expandTo18Decimals(12000))
+    );
   });
 
   it("Stacks LP tokens", async () => {
-    const pancakeswapUtilities = (await deployPancakeUtilities()) as Contract;
-    const StackingPoolFactory = await ethers.getContractFactory("StakingPool", {
-      libraries: {
-        PancakeswapUtilities: pancakeswapUtilities.address,
-      },
-    });
-    const stackingPoolLP = await StackingPoolFactory.deploy(
-      SLEV.address,
-      levPair.address,
-      [mockLEV.address],
-      [expandTo18Decimals(2)],
-      pancakeRouter.address
-    );
-    await levPair.approve(stackingPoolLP.address, expandTo18Decimals(2));
-    await stackingPoolLP.stack(expandTo18Decimals(2));
+    // let's say the fake busd is a LP token
+    await masterChef.add(1000, mockBUSD.address, false);
+    await mockBUSD.transfer(alice.address, expandTo18Decimals(2));
+    await mockBUSD.approve(masterChef.address, expandTo18Decimals(3));
+    await mockBUSD
+      .connect(alice)
+      .approve(masterChef.address, expandTo18Decimals(2));
+    await masterChef.deposit(1, expandTo18Decimals(3));
+    await mineBlock(owner.provider);
+    await masterChef.connect(alice).deposit(1, expandTo18Decimals(2));
+
     await mineBlock(owner.provider);
     await mineBlock(owner.provider);
     await mineBlock(owner.provider);
-    const balanceLEVBefore = await mockLEV.balanceOf(owner.address);
-    const availableRewards = await stackingPoolLev.getCurrentRewards(
-      owner.address,
-      mockLEV.address
-    );
-    await stackingPoolLev.collectAllRewards();
-    const balanceLEVAfter = await mockLEV.balanceOf(owner.address);
+
+    const balanceLEVBefore = await LEV.balanceOf(owner.address);
+    await masterChef.updatePool(1);
+    await masterChef.withdraw(1, 0);
+    await masterChef.connect(alice).withdraw(1, 0);
+    const balanceLEVAfter = await LEV.balanceOf(owner.address);
     const difference = balanceLEVAfter.sub(balanceLEVBefore);
-    expect(difference).to.equal(BigNumber.from("79491376968285535189"));
-    expect(availableRewards).to.equal(BigNumber.from("69819819786375552149"));
+    expect(difference).to.equal(BigNumber.from("19504876219051330081"));
+    const balanceAlice = await LEV.balanceOf(alice.address);
+    expect(balanceAlice).to.equal(BigNumber.from("7201800450110000000"));
   });
 });

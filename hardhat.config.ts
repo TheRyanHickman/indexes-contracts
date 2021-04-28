@@ -39,6 +39,13 @@ export default {
         "0xdf57089febbacf7ba0bc227dafbffa9fc08a93fdc68e1e42411a14efcf23656e",
       ].filter((addr) => !!addr),
     },
+    adribox: {
+      url: "http://192.168.1.93:8549",
+      accounts: [
+        process.env.BSC_WALLET_KEY,
+        "0xdf57089febbacf7ba0bc227dafbffa9fc08a93fdc68e1e42411a14efcf23656e",
+      ].filter((addr) => !!addr),
+    },
     mainnet: {
       url: "https://bsc-dataseed.binance.org/",
       chainId: 56,
@@ -56,6 +63,9 @@ export default {
       accounts: {
         accountsBalance: "10000000000000000000000000",
       },
+      forking: {
+	      url: "https://bsc-dataseed.binance.org",
+      }
     },
   },
 };

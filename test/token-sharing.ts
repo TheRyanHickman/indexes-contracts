@@ -23,10 +23,7 @@ describe("Token Sharing", function () {
 
   beforeEach(async () => {
     const tokenSharingFactory = await ethers.getContractFactory("TokenSharing");
-    tokenSharing = await tokenSharingFactory.deploy(owner.address, [
-      mockLEV.address,
-      mockBUSD.address,
-    ]);
+    tokenSharing = await tokenSharingFactory.deploy(owner.address);
   });
 
   it("Fails, not being a shareholder", async () => {
@@ -109,7 +106,7 @@ describe("Token Sharing", function () {
     await tokenSharing.applyProposal(0);
     await mockLEV.transfer(tokenSharing.address, expandTo18Decimals(40));
     await mockBUSD.transfer(tokenSharing.address, expandTo18Decimals(100));
-    await tokenSharing.distributeAllTokens();
+    await tokenSharing.distributeAllTokens([mockLEV.address, mockBUSD.address]);
 
     expect(await mockLEV.balanceOf(other.address)).to.equal(
       expandTo18Decimals(20)

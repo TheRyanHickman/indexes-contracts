@@ -1,4 +1,3 @@
-import { deployLEV, deploySLEV } from "./deploy-tokens";
 import {
   deployPair,
   deployPancakeUtilities,
@@ -8,7 +7,7 @@ import hre, { ethers } from "hardhat";
 
 import { Contract } from "@ethersproject/contracts";
 import { deployController } from "./deploy-controller";
-import { deployStakingPools } from "./deploy-staking";
+import { deployLEV } from "./deploy-tokens";
 import { expandTo18Decimals } from "../test/utils";
 import fs from "fs";
 
@@ -44,25 +43,14 @@ export const main = async () => {
 
   console.log(`Deploying all contracts to ${network} by ${owner.address}...`);
   addrs.pancakeUtilities = utilities.address;
-  const { stakingController } = await deployStakingPools();
-  addrs.SLEV = await stakingController.SLEV();
   const teamSharing = await deployTeamSharing(owner.address, [
     addrs.SLEV,
     addrs.tokens.BUSD,
   ]);
   addrs.teamSharing = teamSharing.address;
-  const lev = await deployLEV(
-    addrs.pancakeUtilities,
-    owner.address,
-    addrs.pancakeRouter,
-    addrs.SLEV,
-    addrs.teamSharing
-  );
-  addrs.LEV = lev.address;
 
   const indexController = await deployController();
   addrs.indexController = indexController.address;
-  const { stakingPoolLEV } = await deployStakingPools();
   const deployed = {
     utilities: addrs.pancakeUtilities,
     slev: addrs.SLEV,
@@ -70,7 +58,6 @@ export const main = async () => {
     busd: addrs.tokens.BUSD,
     indexController: addrs.indexController,
     tokenSharing: addrs.teamSharing,
-    stakingPoolLEV,
     router: addrs.pancakeRouter,
   };
   console.log(deployed);
@@ -100,17 +87,6 @@ const deployTestIndex = async (indexController: Contract) => {
     tokensAddrs.WETH,
   ]);
   return await indexController.pools(0);
-};
-
-const deployTeamSharing = async (owner: string, tokens: string[]) => {
-  const TokenSharingFactory = await ethers.getContractFactory("TokenSharing");
-  const tokenSharing = await TokenSharingFactory.deploy(
-    owner,
-    tokens,
-    deployConfig
-  );
-  console.log("Team sharing:", tokenSharing.address);
-  return tokenSharing.deployed();
 };
 
 export const logPoint = () => {

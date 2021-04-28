@@ -19,7 +19,6 @@ describe("Pool Controller", function () {
   let owner: SignerWithAddress, devTeam: SignerWithAddress;
   let LEV: Contract,
     mockWETH: Contract,
-    mockSLEV: Contract,
     mockBUSD: Contract,
     mockBTC: Contract,
     mockLEV: Contract,
@@ -28,8 +27,6 @@ describe("Pool Controller", function () {
 
   before(async () => {
     [owner] = await ethers.getSigners();
-    const pancakeswapUtilities = (await deployPancakeUtilities()) as Contract;
-    mockSLEV = await deployMockToken("Fake SLEV", "VELS", owner.address);
     mockBUSD = await deployMockToken("Fake BUSD", "DSUB", owner.address);
     mockBTC = await deployMockToken("Fake BTC", "CTB", owner.address);
     mockWETH = await deployMockToken("Fake WETH", "HTEW", owner.address);
@@ -45,25 +42,11 @@ describe("Pool Controller", function () {
     });
     pancakeRouter = exchange.pancakeRouter;
     WBNB = exchange.WBNB;
-    LEV = await deployLEV(
-      pancakeswapUtilities.address,
-      owner.address,
-      pancakeRouter.address,
-      mockSLEV.address,
-      owner.address
-    );
+    LEV = await deployLEV(owner);
     await deployPair(
       WBNB,
       expandTo18Decimals(500),
       LEV,
-      expandTo18Decimals(200),
-      pancakeRouter,
-      owner
-    );
-    await deployPair(
-      LEV,
-      expandTo18Decimals(500),
-      mockSLEV,
       expandTo18Decimals(200),
       pancakeRouter,
       owner
@@ -80,7 +63,6 @@ describe("Pool Controller", function () {
     const controllerContract = await Controller.deploy(
       WBNB.address,
       LEV.address,
-      mockSLEV.address,
       pancakeRouter.address,
       owner.address
     );

@@ -4,126 +4,63 @@ import { deployPair, getPancakeRouter } from "../test/pancakeswap";
 
 import { Contract } from "@ethersproject/contracts";
 import ERC20Artifact from "../artifacts/contracts/tokens/LEVToken.sol/LEVToken.json";
+import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import { addresses } from "./deploy";
-import { deployMockToken } from "../test/token";
-import { deployPairWithPresets } from "./deploy-pair";
+import { deployLEV } from "./deploy-tokens";
+import deployTeamSharing from "./deploy-team-sharing";
 import { ethers } from "hardhat";
 import { expandTo18Decimals } from "../test/utils";
-import hre from "hardhat";
 
-export const getStakingControllerFactory = (putilities: string) => {
-  return ethers.getContractFactory("StakingPoolController", {
-    libraries: {
-      PancakeswapUtilities: putilities,
-    },
-  });
-};
-
-export const deployStakingPool = async (
-  stakingController: Contract,
-  stakeToken: string,
-  rewardTokens: string[],
-  multipliers = [1]
+const deploySushibar = async (
+  name: string,
+  symbol: string,
+  rewardToken: string
 ) => {
-  const tx = await stakingController.deployStakingPool(
-    stakeToken,
-    rewardTokens,
-    multipliers
+  const SushibarFactory = await ethers.getContractFactory("RewardBar");
+  return SushibarFactory.deploy(name, symbol, rewardToken);
+};
+
+const deployMasterChef = async (
+  LEV: Contract,
+  SLEV: Contract,
+  SBUSD: Contract,
+  owner: SignerWithAddress,
+  teamSharing: Contract
+) => {
+  const MasterChefFactory = await ethers.getContractFactory("MasterChef");
+  return MasterChefFactory.deploy(
+    LEV.address,
+    SLEV.address,
+    SBUSD.address,
+    teamSharing.address,
+    expandTo18Decimals(5),
+    await ethers.provider.getBlockNumber()
   );
-  const receipt = await tx.wait();
-  return receipt.events[0].args[0];
 };
 
-const ERC20 = async (addr: string) => {
-  const [signer] = await ethers.getSigners();
-  return new ethers.Contract(addr, ERC20Artifact.abi, signer);
-};
-
-export const deployStakingPools = async () => {
+export const main = async () => {
   const [owner] = await ethers.getSigners();
   const addrs = addresses.mainnet;
-  const router = await getPancakeRouter(addrs.pancakeRouter);
-  const stakingFactory = await getStakingControllerFactory(
-    addrs.pancakeUtilities
+  const teamSharing = await deployTeamSharing();
+  const LEV = await deployLEV(owner);
+  const SLEV = await deploySushibar("rewards LEV", "SLEV", LEV.address);
+  const SBUSD = await deploySushibar(
+    "rewards BUSD",
+    "SBUSD",
+    addrs.tokens.BUSD
   );
-  const stakingController = await stakingFactory.deploy(owner.address);
-  addrs.SLEV = await stakingController.SLEV();
-
-  const levslevlp = await deployPair(
-    await ERC20(addrs.LEV),
-    expandTo18Decimals(1000),
-    await ERC20(addrs.SLEV),
-    expandTo18Decimals(10000),
-    router,
-    owner
+  const masterChef = await deployMasterChef(
+    LEV,
+    SLEV,
+    SBUSD,
+    owner,
+    teamSharing
   );
-
-  await deployPair(
-    await ERC20(addrs.tokens.BUSD),
-    expandTo18Decimals(40),
-    await ERC20(addrs.SLEV),
-    expandTo18Decimals(10000),
-    router,
-    owner
-  );
-  //  const levslevlp = await router.getPair(addrs.LEV, addrs.SLEV);
-  //  console.log(levslevlp);
-  const stakingPoolLEV = await deployStakingPool(
-    stakingController,
-    addrs.LEV,
-    [addrs.LEV, addrs.tokens.BUSD],
-    [1, 1]
-  );
-  const lp = await deployPair(
-    await ERC20(addrs.tokens.BUSD),
-    expandTo18Decimals(40),
-    await ERC20(addrs.LEV),
-    expandTo18Decimals(10000),
-    router,
-    owner
-  );
-  const stakingPoolLEVBUSDLP = await deployStakingPool(
-    stakingController,
-    lp.address,
-    [addrs.LEV]
-  );
-  const stakingPoolLEVBNBDLP = await deployStakingPool(
-    stakingController,
-    addrs.tokens.levbnblp,
-    [addrs.LEV]
-  );
-  const deployed = {
-    stakingPoolLEV: stakingPoolLEV,
-    stakingPoolLEVBUSDLP,
-    stakingPoolLEVBNBDLP,
-    stakingController,
+  return {
+    masterChef: masterChef.address,
+    LEV: LEV.address,
+    teamSharing: teamSharing.address,
   };
-  console.log(R.omit(["stakingController"], deployed));
-  return deployed;
 };
 
-const deployBUSDLEVPool = async () => {
-  const addrs = addresses.mainnet;
-  await deployPairWithPresets(
-    addrs.LEV,
-    addrs.tokens.BUSD,
-    addrs.pancakeRouter
-  );
-  await deployPairWithPresets(
-    addrs.LEV,
-    addrs.tokens.BUSD,
-    addrs.pancakeRouter
-  );
-};
-
-const deployPairsForLEVSLEV = async () => {
-  const addrs = addresses.mainnet;
-  await deployPairWithPresets(addrs.LEV, addrs.SLEV, addrs.pancakeRouter);
-  //await deployPairWithPresets(
-  //  addrs.tokens.BUSD,
-  //  addrs.LEV,
-  //  addrs.pancakeRouter
-  //);
-};
-
-deployStakingPools();
+main().then(console.log);

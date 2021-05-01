@@ -185,7 +185,7 @@ contract MasterChef is Ownable {
     }
 
     // View function to see pending CAKEs on frontend.
-    function pendingCake(uint256 _pid, address _user) external view returns (uint256) {
+    function pendingCake(uint256 _pid, address _user) public view returns (uint256) {
         PoolInfo storage pool = poolInfo[_pid];
         UserInfo storage user = userInfo[_pid][_user];
         uint256 accCakePerShare = pool.accCakePerShare;
@@ -337,8 +337,7 @@ contract MasterChef is Ownable {
 
     function getRewardsBUSD() public view returns (uint256) {
         PoolInfo storage pool = poolInfo[0];
-        UserInfo storage user = userInfo[0][msg.sender];
-        uint256 pendingLEV = user.amount * pool.accCakePerShare / 1e12 - user.rewardDebt;
+        uint256 pendingLEV = pendingCake(0, msg.sender);
         uint256 poolBUSDBalance = busd.balanceOf(address(syrup));
         uint256 totalPendingLEV = lev.balanceOf(address(syrup)) * (totalAllocPoint / pool.allocPoint);
         if (totalPendingLEV == 0)

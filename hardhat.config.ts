@@ -40,10 +40,11 @@ export default {
       ].filter((addr) => !!addr),
     },
     adribox: {
-      url: "http://192.168.1.93:8549",
+      url: "http://192.168.1.93:8546",
+      chainId: 56,
       accounts: [
         process.env.BSC_WALLET_KEY,
-        "0xdf57089febbacf7ba0bc227dafbffa9fc08a93fdc68e1e42411a14efcf23656e",
+        "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80",
       ].filter((addr) => !!addr),
     },
     mainnet: {
@@ -53,7 +54,6 @@ export default {
         process.env.BSC_WALLET_KEY ||
           "0xdf57089febbacf7ba0bc227dafbffa9fc08a93fdc68e1e42411a14efcf23656e",
       ],
-      gasPrice: 10000000000,
     },
     hardhat: {
       mining: {
@@ -63,9 +63,6 @@ export default {
       accounts: {
         accountsBalance: "10000000000000000000000000",
       },
-      forking: {
-	      url: "https://bsc-dataseed.binance.org",
-      }
     },
   },
 };

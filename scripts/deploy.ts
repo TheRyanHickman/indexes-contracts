@@ -34,6 +34,7 @@ export let addresses: ContractAddresses = {
   },
 };
 
+// deprecated!
 export const main = async () => {
   const [owner] = await ethers.getSigners();
   const utilities = await deployPancakeUtilities();
@@ -43,11 +44,6 @@ export const main = async () => {
 
   console.log(`Deploying all contracts to ${network} by ${owner.address}...`);
   addrs.pancakeUtilities = utilities.address;
-  const teamSharing = await deployTeamSharing(owner.address, [
-    addrs.SLEV,
-    addrs.tokens.BUSD,
-  ]);
-  addrs.teamSharing = teamSharing.address;
 
   const indexController = await deployController();
   addrs.indexController = indexController.address;

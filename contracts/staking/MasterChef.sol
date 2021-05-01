@@ -59,10 +59,10 @@ contract MasterChef is Ownable {
 
     // The CAKE TOKEN!
     LEVToken public lev;
+    // BUSD token
+    IERC20 public busd;
     // pool for LEV rewards
     RewardBar public syrup;
-    // pool for BUSD rewards
-    RewardBar public sbusd;
     // Dev address.
     address public devaddr;
     // CAKE tokens created per block.
@@ -87,20 +87,20 @@ contract MasterChef is Ownable {
 
     constructor(
         LEVToken _lev,
+        IERC20 _busd,
         RewardBar _syrup,
-        RewardBar _sbusd,
         address _devaddr,
         uint256 _cakePerBlock,
         uint256 _startBlock
     ) {
         lev = _lev;
+        busd = _busd;
         syrup = _syrup;
-        sbusd = _sbusd;
         devaddr = _devaddr;
         cakePerBlock = _cakePerBlock;
         startBlock = _startBlock;
 
-        // staking pool
+        // staking pool LEV
         poolInfo.push(PoolInfo({
             lpToken: _lev,
             allocPoint: 1000,
@@ -239,10 +239,7 @@ contract MasterChef is Ownable {
         UserInfo storage user = userInfo[_pid][msg.sender];
         updatePool(_pid);
         if (user.amount > 0) {
-            uint256 pending = user.amount * pool.accCakePerShare / 1e12 - user.rewardDebt;
-            if(pending > 0) {
-                safeCakeTransfer(msg.sender, pending);
-            }
+            withdrawPendingRewards(_pid);
         }
         if (_amount > 0) {
             pool.lpToken.transferFrom(address(msg.sender), address(this), _amount);
@@ -261,10 +258,7 @@ contract MasterChef is Ownable {
         require(user.amount >= _amount, "withdraw: not good");
 
         updatePool(_pid);
-        uint256 pending = user.amount * pool.accCakePerShare / 1e12 - user.rewardDebt;
-        if(pending > 0) {
-            safeCakeTransfer(msg.sender, pending);
-        }
+        withdrawPendingRewards(_pid);
         if(_amount > 0) {
             user.amount = user.amount - _amount;
             pool.lpToken.transfer(address(msg.sender), _amount);
@@ -279,10 +273,7 @@ contract MasterChef is Ownable {
         UserInfo storage user = userInfo[0][msg.sender];
         updatePool(0);
         if (user.amount > 0) {
-            uint256 pending = user.amount * pool.accCakePerShare / 1e12 - user.rewardDebt;
-            if(pending > 0) {
-                safeCakeTransfer(msg.sender, pending);
-            }
+            withdrawPendingRewards(0);
         }
         if(_amount > 0) {
             pool.lpToken.transferFrom(address(msg.sender), address(this), _amount);
@@ -291,22 +282,16 @@ contract MasterChef is Ownable {
         user.rewardDebt = user.amount * pool.accCakePerShare / 1e12;
 
         syrup.mint(msg.sender, _amount);
-        sbusd.mint(msg.sender, _amount);
         emit Deposit(msg.sender, 0, _amount);
     }
 
-    // Withdraw CAKE tokens from STAKING.
+    // Withdraw CAKE and BUSD tokens from STAKING.
     function leaveStaking(uint256 _amount) public {
         PoolInfo storage pool = poolInfo[0];
         UserInfo storage user = userInfo[0][msg.sender];
         require(user.amount >= _amount, "withdraw: not good");
         updatePool(0);
-        uint256 pending = user.amount * pool.accCakePerShare / 1e12 - user.rewardDebt;
-        if(pending > 0) {
-            safeCakeTransfer(msg.sender, pending);
-            uint256 sbusdShares = sbusd.balanceOf(msg.sender);
-            sbusd.leave(msg.sender, sbusdShares);
-        }
+        withdrawPendingRewards(0);
         if(_amount > 0) {
             user.amount = user.amount - _amount;
             pool.lpToken.transfer(address(msg.sender), _amount);
@@ -332,11 +317,31 @@ contract MasterChef is Ownable {
         syrup.safeCakeTransfer(_to, _amount);
     }
 
-    function getRewardsBUSD() external view returns (uint256) {
-        uint256 share = sbusd.balanceOf(msg.sender);
-        if (sbusd.totalSupply() == 0)
+    function withdrawPendingRewards(uint poolId) internal {
+        PoolInfo storage pool = poolInfo[poolId];
+        UserInfo storage user = userInfo[poolId][msg.sender];
+        uint256 pendingLEV = user.amount * pool.accCakePerShare / 1e12 - user.rewardDebt;
+
+        // Only pool 0 (stake LEV) has BUSD rewards
+        if (poolId == 0) {
+            uint pendingBUSD = getRewardsBUSD();
+            syrup.safeTokenTransfer(msg.sender, pendingBUSD, busd);
+        }
+
+        if(pendingLEV > 0) {
+            safeCakeTransfer(msg.sender, pendingLEV);
+        }
+    }
+
+    function getRewardsBUSD() public view returns (uint256) {
+        PoolInfo storage pool = poolInfo[0];
+        UserInfo storage user = userInfo[0][msg.sender];
+        uint256 pendingLEV = user.amount * pool.accCakePerShare / 1e12 - user.rewardDebt;
+        uint256 poolBUSDBalance = busd.balanceOf(address(syrup));
+        uint256 totalPendingLEV = lev.balanceOf(address(syrup)) * (totalAllocPoint / pool.allocPoint);
+        if (totalPendingLEV == 0)
             return 0;
-        return share * IERC20(sbusd.rewardToken()).balanceOf(address(sbusd)) / sbusd.totalSupply();
+        return pendingLEV * poolBUSDBalance / totalPendingLEV;
     }
 
     // Update dev address by the previous dev.

@@ -4,9 +4,8 @@ import { expandTo18Decimals } from "../test/utils";
 
 export const deployLEV = async (owner: SignerWithAddress) => {
   const LevFactory = await ethers.getContractFactory("LEVToken");
-  const lev = await LevFactory.deploy(
+  return LevFactory.deploy(
     owner.address,
     expandTo18Decimals(5000000) // 5,000,000
   );
-  return lev;
 };

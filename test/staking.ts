@@ -17,7 +17,6 @@ describe("Staking pools", function () {
   let LEV: Contract,
     levPair: Contract,
     SLEV: Contract,
-    SBUSD: Contract,
     mockBUSD: Contract,
     pancakeRouter: Contract;
 
@@ -26,22 +25,20 @@ describe("Staking pools", function () {
     const LevFactory = await ethers.getContractFactory("LEVToken");
     LEV = await LevFactory.deploy(owner.address, expandTo18Decimals(100000));
     const BarFactory = await ethers.getContractFactory("RewardBar");
-    SLEV = await BarFactory.deploy("LEV rewards", "SLEV", LEV.address);
+    SLEV = await BarFactory.deploy(LEV.address);
     mockBUSD = await deployMockToken("Fake BUSD", "DSUB", owner.address);
-    SBUSD = await BarFactory.deploy("BUSD rewards", "SBUSD", mockBUSD.address);
 
     const MasterChefFactory = await ethers.getContractFactory("MasterChef");
     masterChef = await MasterChefFactory.deploy(
       LEV.address,
+      mockBUSD.address,
       SLEV.address,
-      SBUSD.address,
       owner.address,
       expandTo18Decimals(5),
       await ethers.provider.getBlockNumber()
     );
     await LEV.transferOwnership(masterChef.address);
     await SLEV.transferOwnership(masterChef.address);
-    await SBUSD.transferOwnership(masterChef.address);
   });
 
   it("Should returns 0 to stacking rewards", async () => {
@@ -52,7 +49,7 @@ describe("Staking pools", function () {
 
   it("Gets rewarded with LEV and BUSD", async () => {
     await mockBUSD.transfer(alice.address, expandTo18Decimals(12000));
-    await mockBUSD.transfer(SBUSD.address, expandTo18Decimals(1000));
+    await mockBUSD.transfer(SLEV.address, expandTo18Decimals(1000));
     await LEV.approve(masterChef.address, expandTo18Decimals(20));
     await masterChef.enterStaking(expandTo18Decimals(20));
     expect(await SLEV.balanceOf(owner.address)).to.equal(
@@ -76,6 +73,7 @@ describe("Staking pools", function () {
     expect(balanceBUSD).to.equal(
       expandTo18Decimals(100000000).sub(expandTo18Decimals(12000))
     );
+    await masterChef.leaveStaking(expandTo18Decimals(20));
   });
 
   it("Stacks LP tokens", async () => {

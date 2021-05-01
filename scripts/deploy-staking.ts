@@ -42,6 +42,8 @@ export const main = async () => {
   const [owner] = await ethers.getSigners();
   const addrs = addresses.mainnet;
   const teamSharing = await deployTeamSharing();
+  console.log("team sharing deployed");
+  await teamSharing.deployed();
   const LEV = await deployLEV(owner);
   const SLEV = await deploySushibar("rewards LEV", "SLEV", LEV.address);
   const SBUSD = await deploySushibar(
@@ -56,10 +58,17 @@ export const main = async () => {
     owner,
     teamSharing
   );
+
+  await SLEV.transferOwnership(masterChef.address);
+  await LEV.transferOwnership(masterChef.address);
+  await SBUSD.transferOwnership(masterChef.address);
+
   return {
     masterChef: masterChef.address,
     LEV: LEV.address,
     teamSharing: teamSharing.address,
+    SLEV: SLEV.address,
+    SBUSD: SBUSD.address,
   };
 };
 

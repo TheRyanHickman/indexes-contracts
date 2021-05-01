@@ -18,18 +18,18 @@ import "hardhat/console.sol";
 //
 // This contract handles swapping to and from xSushi, SushiSwap's staking token.
 contract RewardBar is ERC20, IMintable, Ownable {
-    IERC20 public rewardToken;
+    IERC20 public lev;
 
     // Define the Sushi token contract
-    constructor(string memory name, string memory symbol, IERC20 _rewardToken) ERC20(name, symbol) {
-        rewardToken = _rewardToken;
+    constructor(IERC20 _lev) ERC20("Staked LEV", "SLEV") {
+        lev = _lev;
     }
 
     // Enter the bar. Pay some SUSHIs. Earn some shares.
     // Locks Sushi and mints xSushi
     function enter(uint256 _amount) public {
         // Gets the amount of Sushi locked in the contract
-        uint256 totalSushi = rewardToken.balanceOf(address(this));
+        uint256 totalSushi = lev.balanceOf(address(this));
         // Gets the amount of xSushi in existence
         uint256 totalShares = totalSupply();
         // If no xSushi exists, mint it 1:1 to the amount put in
@@ -42,7 +42,7 @@ contract RewardBar is ERC20, IMintable, Ownable {
             _mint(msg.sender, what);
         }
         // Lock the Sushi in the contract
-        rewardToken.transferFrom(msg.sender, address(this), _amount);
+        lev.transferFrom(msg.sender, address(this), _amount);
     }
 
     // Leave the bar. Claim back your SUSHIs.
@@ -52,9 +52,9 @@ contract RewardBar is ERC20, IMintable, Ownable {
         // Gets the amount of xSushi in existence
         uint256 totalShares = totalSupply();
         // Calculates the amount of Sushi the xSushi is worth
-        uint256 what = _share * rewardToken.balanceOf(address(this)) / totalShares;
+        uint256 what = _share * lev.balanceOf(address(this)) / totalShares;
         _burn(account, _share);
-        rewardToken.transfer(account, what);
+        lev.transfer(account, what);
     }
 
     function mint(address receiver, uint256 amount) override external onlyOwner {
@@ -67,11 +67,16 @@ contract RewardBar is ERC20, IMintable, Ownable {
 
     // Safe cake transfer function, just in case if rounding error causes pool to not have enough CAKEs.
     function safeCakeTransfer(address _to, uint256 _amount) public onlyOwner {
-        uint256 cakeBal = rewardToken.balanceOf(address(this));
-        if (_amount > cakeBal) {
-            rewardToken.transfer(_to, cakeBal);
+        safeTokenTransfer(_to, _amount, lev);
+    }
+
+    // Safe busd transfer function, just in case if rounding error causes pool to not have enough CAKEs.
+    function safeTokenTransfer(address _to, uint256 _amount, IERC20 _token) public onlyOwner {
+        uint256 bal = _token.balanceOf(address(this));
+        if (_amount > bal) {
+            _token.transfer(_to, bal);
         } else {
-            rewardToken.transfer(_to, _amount);
+            _token.transfer(_to, _amount);
         }
     }
 }

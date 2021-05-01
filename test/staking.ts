@@ -59,16 +59,16 @@ describe("Staking pools", function () {
     await mineBlock(owner.provider);
     await mineBlock(owner.provider);
 
-    const balanceLEVBefore = await LEV.balanceOf(owner.address);
     await masterChef.updatePool(0);
     const availableRewards = await masterChef.pendingCake(0, owner.address);
     const rewardBUSD = await masterChef.getRewardsBUSD();
     expect(rewardBUSD).to.equal(expandTo18Decimals(1000));
+    const balanceLEVBefore = await LEV.balanceOf(owner.address);
     await masterChef.leaveStaking(0);
     const balanceLEVAfter = await LEV.balanceOf(owner.address);
     const difference = balanceLEVAfter.sub(balanceLEVBefore);
     expect(availableRewards).to.equal(expandTo18Decimals(16));
-    expect(difference).to.equal(expandTo18Decimals(25));
+    expect(difference).to.equal(expandTo18Decimals(21)); // 16 LEV + 4 LEV + 1 LEV because we're also the dev account
     const balanceBUSD = await mockBUSD.balanceOf(owner.address);
     expect(balanceBUSD).to.equal(
       expandTo18Decimals(100000000).sub(expandTo18Decimals(12000))

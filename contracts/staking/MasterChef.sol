@@ -109,7 +109,6 @@ contract MasterChef is Ownable {
         }));
 
         totalAllocPoint = 1000;
-
     }
 
     function updateMultiplier(uint256 multiplierNumber) public onlyOwner {
@@ -193,7 +192,8 @@ contract MasterChef is Ownable {
         uint256 lpSupply = pool.lpToken.balanceOf(address(this));
         if (block.number > pool.lastRewardBlock && lpSupply != 0) {
             uint256 multiplier = getMultiplier(pool.lastRewardBlock, block.number);
-            uint256 cakeReward = multiplier * cakePerBlock * pool.allocPoint / totalAllocPoint;
+            // reward is 80% of cake per block
+            uint256 cakeReward = multiplier * (cakePerBlock * 8 / 10) * pool.allocPoint / totalAllocPoint;
             accCakePerShare = accCakePerShare + (cakeReward * 1e12 / lpSupply);
         }
         return user.amount * accCakePerShare / 1e12 - user.rewardDebt;
@@ -210,6 +210,7 @@ contract MasterChef is Ownable {
 
     // Update reward variables of the given pool to be up-to-date.
     function updatePool(uint256 _pid) public {
+
         PoolInfo storage pool = poolInfo[_pid];
         if (block.number <= pool.lastRewardBlock) {
             return;
@@ -269,6 +270,7 @@ contract MasterChef is Ownable {
 
     // Stake CAKE tokens to MasterChef
     function enterStaking(uint256 _amount) public {
+
         PoolInfo storage pool = poolInfo[0];
         UserInfo storage user = userInfo[0][msg.sender];
         updatePool(0);

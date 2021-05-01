@@ -184,6 +184,17 @@ contract MasterChef is Ownable {
         return (_to - _from) * BONUS_MULTIPLIER;
     }
 
+    // pending total lev reward to be minted for a pool
+    function pendingTotalCakeReward(uint256 _pid) public view returns (uint256) {
+        PoolInfo storage pool = poolInfo[_pid];
+        if (block.number > pool.lastRewardBlock) {
+            uint256 multiplier = getMultiplier(pool.lastRewardBlock, block.number);
+            // reward is 80% of cake per block
+            return multiplier * (cakePerBlock * 8 / 10) * pool.allocPoint / totalAllocPoint;
+        }
+        return 0;
+    }
+
     // View function to see pending CAKEs on frontend.
     function pendingCake(uint256 _pid, address _user) public view returns (uint256) {
         PoolInfo storage pool = poolInfo[_pid];
@@ -191,9 +202,7 @@ contract MasterChef is Ownable {
         uint256 accCakePerShare = pool.accCakePerShare;
         uint256 lpSupply = pool.lpToken.balanceOf(address(this));
         if (block.number > pool.lastRewardBlock && lpSupply != 0) {
-            uint256 multiplier = getMultiplier(pool.lastRewardBlock, block.number);
-            // reward is 80% of cake per block
-            uint256 cakeReward = multiplier * (cakePerBlock * 8 / 10) * pool.allocPoint / totalAllocPoint;
+            uint256 cakeReward = pendingTotalCakeReward(_pid);
             accCakePerShare = accCakePerShare + (cakeReward * 1e12 / lpSupply);
         }
         return user.amount * accCakePerShare / 1e12 - user.rewardDebt;
@@ -339,7 +348,9 @@ contract MasterChef is Ownable {
         PoolInfo storage pool = poolInfo[0];
         uint256 pendingLEV = pendingCake(0, msg.sender);
         uint256 poolBUSDBalance = busd.balanceOf(address(syrup));
-        uint256 totalPendingLEV = lev.balanceOf(address(syrup)) * (totalAllocPoint / pool.allocPoint);
+        uint256 pendingLevReward = pendingTotalCakeReward(0);
+        uint256 totalPendingLEV = (lev.balanceOf(address(syrup)) + pendingLevReward) * (totalAllocPoint / pool.allocPoint);
+
         if (totalPendingLEV == 0)
             return 0;
         return pendingLEV * poolBUSDBalance / totalPendingLEV;

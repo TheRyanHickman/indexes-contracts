@@ -9,6 +9,7 @@ import {
 } from "../test/pancakeswap";
 import hre, { ethers } from "hardhat";
 
+import { Command } from "commander";
 import ControllerArtifact from "../artifacts/contracts/indexes/IndexController.sol/IndexController.json";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import WBNBArtifact from "../artifacts/contracts/tokens/WBNB.sol/WBNB.json";
@@ -19,10 +20,11 @@ import { deployController } from "./deploy-controller";
 import { deployMockToken } from "../test/token";
 import { expandTo18Decimals } from "../test/utils";
 
-let network = "mainnet";
-//assert(ownerWallet === "0x6DeBA0F8aB4891632fB8d381B27eceC7f7743A14");
+const program = new Command();
 
-const deployIndexController = async (addresses: any) => {
+let network = "mainnet";
+
+const deployIndexController = async (LEV: string, teamSharing: string) => {
   const [owner] = await ethers.getSigners();
 
   const addrs = addresses[network];
@@ -32,16 +34,21 @@ const deployIndexController = async (addresses: any) => {
     },
   });
   const ctr = await ControllerFactory.deploy(
-    addrs.tokens.BUSD,
-    addrs.LEV,
-    addrs.SLEV,
+    addrs.tokens.WBNB,
+    LEV,
     addrs.pancakeRouter,
-    owner.address
+    teamSharing
   );
-  console.log("INDEX CNTRLR ADDR", ctr.address);
+  return {
+    controller: ctr,
+  };
 };
 
-export const deployIndex = async (addrs: any) => {
+export const deployIndex = async (
+  addrs: any,
+  indexController: string,
+  indexKey: "LI" | "DBI"
+) => {
   console.log("Note: make sure to update controller if index pool was updated");
   const [owner] = await ethers.getSigners();
   const router = await getPancakeRouter(addrs.pancakeRouter);
@@ -51,6 +58,8 @@ export const deployIndex = async (addrs: any) => {
 
   const indexesDesc = {
     LI: {
+      name: "Legacy Index",
+      symbol: "LI",
       weights: [30, 20, 15, 5, 5, 5, 5, 5, 5, 5],
       underlyingTokens: [
         "0x7130d2a12b9bcbfae4f2634d864a1ee1ce3ead9c",
@@ -67,6 +76,7 @@ export const deployIndex = async (addrs: any) => {
     },
     DBI: {
       name: "DefiBSCIndex",
+      symbol: "DBI",
       weights: [30, 25, 25, 25, 20, 20, 20, 10, 5, 5, 5],
       underlyingTokens: [
         "0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c",
@@ -85,8 +95,7 @@ export const deployIndex = async (addrs: any) => {
   };
 
   const WBNB = await router.WETH();
-  const bnbContract = new ethers.Contract(WBNB, WBNBArtifact.abi, owner);
-  const activeIndex = indexesDesc.DBI;
+  const activeIndex = indexesDesc[indexKey];
   for (const tok of activeIndex.underlyingTokens) {
     if (tok === WBNB) continue;
     const pair = await factory.getPair(WBNB, tok);
@@ -98,11 +107,10 @@ export const deployIndex = async (addrs: any) => {
   }
 
   const controller = new ethers.Contract(
-    addrs.indexController,
+    indexController,
     ControllerArtifact.abi,
     owner
   );
-  //  const targetPriceWeights =
   const weights = await computeTargetWeights(
     activeIndex.underlyingTokens,
     activeIndex.weights,
@@ -112,7 +120,7 @@ export const deployIndex = async (addrs: any) => {
   );
   const tx = await controller.createIndexPool(
     activeIndex.name,
-    "DBI",
+    activeIndex.symbol,
     activeIndex.underlyingTokens,
     weights,
     [0],
@@ -120,43 +128,34 @@ export const deployIndex = async (addrs: any) => {
       gasLimit: 5000000,
     }
   );
-  console.log("Waiting for confirm...", tx.address);
   const receipt = await tx.wait();
-  console.log(receipt);
-  return receipt.events[1].args.index;
+  return {
+    LI: receipt.events[1].args.index,
+    indexController,
+  };
 };
 
-const makeFakeToken = async (
-  router: any,
-  owner: SignerWithAddress,
-  BNB: Contract
-) => {
-  const tok = await deployMockToken("foobar", "FOOBAR", owner.address);
-  console.log(
-    "will deploy pair. balance wbnb",
-    (await BNB.balanceOf(owner.address)).toString()
+program
+  .option("--lev [address]", "lev address")
+  .option("--teamsharing [address]", "team sharing contract option");
+
+program.parse(process.argv);
+
+const options = program.opts();
+
+const main = async () => {
+  options.lev = "0xE6E340D132b5f46d1e472DebcD681B2aBc16e57E";
+  options.teamSharing = "0x67d269191c92Caf3cD7723F116c85e6E9bf55933";
+
+  const { controller } = await deployIndexController(
+    options.lev,
+    options.teamSharing
   );
-  await deployPair(
-    BNB,
-    expandTo18Decimals(100),
-    tok,
-    expandTo18Decimals(1000),
-    router,
-    owner
-  );
-  return tok.address;
+  return {
+    LI: await deployIndex(addresses.mainnet, controller.address, "LI"),
+    DBI: await deployIndex(addresses.mainnet, controller.address, "DBI"),
+    controller: controller.address,
+  };
 };
 
-//deployPancakeUtilities().then((utilities) => {
-//  const addrs = addresses.mainnet;
-//  console.log("deployed utilities at", utilities.address);
-//  addrs.pancakeUtilities = utilities.address;
-//
-//  deployController().then((ctrl) => {
-//    addrs.indexController = ctrl.address;
-//    console.log("controller is at ", ctrl.address);
-//    deployIndex(addresses.mainnet).then(console.log);
-//  });
-//});
-
-deployIndex(addresses.mainnet).then(console.log);
+main().then(console.log);

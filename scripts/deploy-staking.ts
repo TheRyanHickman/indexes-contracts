@@ -1,7 +1,9 @@
 import { Contract } from "@ethersproject/contracts";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
+import WBNBArtifact from "../artifacts/contracts/tokens/WBNB.sol/WBNB.json";
 import { addresses } from "./deploy";
 import { deployLEV } from "./deploy-tokens";
+import { deployPairWithPresets } from "./deploy-pair";
 import deployTeamSharing from "./deploy-team-sharing";
 import { ethers } from "hardhat";
 import { expandTo18Decimals } from "../test/utils";
@@ -44,14 +46,35 @@ export const main = async () => {
     teamSharing
   );
 
+  // obtain wbnb for liquidity
+  const WBNB = new Contract(addrs.tokens.WBNB, WBNBArtifact.abi, owner);
+  await WBNB.deposit({ value: expandTo18Decimals(1000) });
+  const LEVBNB = await deployPairWithPresets(
+    LEV.address,
+    addrs.tokens.WBNB,
+    addrs.pancakeRouter
+  );
+
+  const LEVBUSD = await deployPairWithPresets(
+    LEV.address,
+    addrs.tokens.BUSD,
+    addrs.pancakeRouter,
+    9 // I'm poor!
+  );
+
   await SLEV.transferOwnership(masterChef.address);
   await LEV.transferOwnership(masterChef.address);
+
+  await masterChef.add(1000, LEVBNB, false);
+  await masterChef.add(1000, LEVBUSD, false);
 
   return {
     masterChef: masterChef.address,
     LEV: LEV.address,
     teamSharing: teamSharing.address,
     SLEV: SLEV.address,
+    LEVBNB: 1,
+    LEVBUSD: 2,
   };
 };
 

@@ -17,7 +17,7 @@ export let addresses: ContractAddresses = {
   mainnet: {
     pancakeUtilities: "0xaCf4b5C41C7890AB80De5802c1812b083A676be9",
     teamSharing: "0xa4BFc6dce86b7C9467F2d28497ca390E7f189066",
-    pancakeRouter: "0x05fF2B0DB69458A0750badebc4f9e13aDd608C7F",
+    pancakeRouter: "0x10ED43C718714eb63d5aA57B78B54704E256024E",
     SLEV: "0x50d080b1df4000BDE996343dB2bAE5581f45A760",
     LEV: "0x3E9B6dc7B5Bf558f16260b6C690D609760be32B3",
     LEVStakingPool: "0x03242a964BaEa52516BD39Ac7BBdFAa3dF60DD56",

@@ -9,7 +9,8 @@ let pairs = {};
 export const deployPairWithPresets = async (
   tokA: string,
   tokB: string,
-  routerAddr: string
+  routerAddr: string,
+  overridePrice: number = 1000
 ) => {
   const [signer] = await ethers.getSigners();
   const tokenA = new ethers.Contract(tokA, erc.abi, signer);
@@ -19,7 +20,7 @@ export const deployPairWithPresets = async (
     tokenA,
     expandTo18Decimals(1000),
     tokenB,
-    expandTo18Decimals(1000),
+    expandTo18Decimals(overridePrice),
     routerContract,
     signer
   );

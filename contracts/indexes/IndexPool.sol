@@ -8,7 +8,7 @@ import "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
 import "contracts/utilities/PancakeswapUtilities.sol";
 import "contracts/tokens/WBNB.sol";
 import "./IndexController.sol";
-import "hardhat/console.sol";
+// import "hardhat/console.sol";
 
 contract IndexPool is ERC20 {
     address private immutable _indexController;
@@ -171,8 +171,6 @@ contract IndexPool is ERC20 {
         if (token == address(_WBNB))
             return amount;
         address pairAddr = _pancakeFactory.getPair(address(_WBNB), token);
-        console.log("using pair", pairAddr);
-        console.log("for tokens", token, address(_WBNB));
         require(pairAddr != address(0), "Cannot find pair BNB-token");
         IUniswapV2Pair pair = IUniswapV2Pair(pairAddr);
         (uint256 reserveBNB, uint256 reserveToken) =

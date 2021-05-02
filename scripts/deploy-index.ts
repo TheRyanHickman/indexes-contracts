@@ -144,8 +144,8 @@ program.parse(process.argv);
 const options = program.opts();
 
 const main = async () => {
-  options.lev = "0xE6E340D132b5f46d1e472DebcD681B2aBc16e57E";
-  options.teamSharing = "0x67d269191c92Caf3cD7723F116c85e6E9bf55933";
+  options.lev = "0x84eA74d481Ee0A5332c457a4d796187F6Ba67fEB";
+  options.teamSharing = "0xc3e53F4d16Ae77Db1c982e75a937B9f60FE63690";
 
   const { controller } = await deployIndexController(
     options.lev,

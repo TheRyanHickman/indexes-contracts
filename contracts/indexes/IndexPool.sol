@@ -2,6 +2,7 @@
 pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 import "@uniswap/v2-core/contracts/interfaces/IUniswapV2Pair.sol";
 import "@uniswap/v2-core/contracts/interfaces/IUniswapV2Factory.sol";
 import "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
@@ -10,7 +11,7 @@ import "contracts/tokens/WBNB.sol";
 import "./IndexController.sol";
 // import "hardhat/console.sol";
 
-contract IndexPool is ERC20 {
+contract IndexPool is ERC20, Ownable {
     address private immutable _indexController;
     WBNB private immutable _WBNB;
     IUniswapV2Router02 private _pancakeRouter;
@@ -203,7 +204,7 @@ contract IndexPool is ERC20 {
         IndexController(_indexController).redistributeFees();
     }
 
-    function changeWeights(uint16[] memory weights) external {
+    function changeWeights(uint16[] memory weights) external onlyOwner {
         int quoteBefore = int(getIndexQuote(1e18));
         uint totalSale = 0;
         for (uint i = 0; i < weights.length; i++) {

@@ -52,6 +52,7 @@ contract IndexController {
                 categories
             );
         pools.push(pool);
+        pool.transferOwnership(msg.sender);
         emit DeployIndex(address(pool));
     }
 

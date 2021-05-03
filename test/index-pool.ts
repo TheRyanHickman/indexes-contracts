@@ -249,7 +249,7 @@ describe("Index Pool", function () {
       }
     );
     const receipt = await ctr.wait();
-    const poolAddr = receipt.events[1].args.index;
+    const poolAddr = receipt.events[3].args.index;
     const poolContract = new ethers.Contract(poolAddr, poolArtifact.abi, owner);
     const quote = await poolContract.getIndexQuoteWithFee(
       expandTo18Decimals(1).div(100)
@@ -329,7 +329,7 @@ describe("Index Pool", function () {
       [0]
     );
     const receipt = await tx.wait();
-    const poolAddr = receipt.events[1].args.index;
+    const poolAddr = receipt.events[3].args.index;
     return new ethers.Contract(poolAddr, poolArtifact.abi, owner);
   };
 

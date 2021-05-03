@@ -7,7 +7,6 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
 import "contracts/interfaces/IBurnable.sol";
 import "contracts/interfaces/IMintable.sol";
-import "contracts/utilities/PancakeswapUtilities.sol";
 
 contract LEVToken is ERC20, IBurnable, IMintable, Ownable {
     uint256 _createdAtBlock;
@@ -31,6 +30,7 @@ contract LEVToken is ERC20, IBurnable, IMintable, Ownable {
         return _createdAtBlock;
     }
 
+    // owner should be MasterChef
     function mint(address receiver, uint256 amount) override external onlyOwner {
         _mint(receiver, amount);
     }

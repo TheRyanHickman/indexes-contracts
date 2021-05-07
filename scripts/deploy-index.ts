@@ -16,13 +16,12 @@ import WBNBArtifact from "../artifacts/contracts/tokens/WBNB.sol/WBNB.json";
 import { addresses } from "./deploy";
 import assert from "assert";
 import { computeTargetWeights } from "./calculate-weights";
-import { deployController } from "./deploy-controller";
 import { deployMockToken } from "../test/token";
 import { expandTo18Decimals } from "../test/utils";
 
 const program = new Command();
 
-let network = "mainnet";
+let network = hre.network.name;
 
 const deployIndexController = async (LEV: string, teamSharing: string) => {
   const [owner] = await ethers.getSigners();
@@ -47,7 +46,7 @@ const deployIndexController = async (LEV: string, teamSharing: string) => {
 export const deployIndex = async (
   addrs: any,
   indexController: string,
-  indexKey: "LI" | "DBI"
+  indexKey: "LI" | "DBI" | "TEST"
 ) => {
   console.log("Note: make sure to update controller if index pool was updated");
   const [owner] = await ethers.getSigners();
@@ -92,6 +91,23 @@ export const deployIndex = async (
         "0xc9849e6fdb743d08faee3e34dd2d1bc69ea11a51",
       ],
     },
+    TEST: {
+      name: "Test Index",
+      symbol: "TEST",
+      weights: [30, 20, 15, 5, 5, 5, 5, 5, 5, 5],
+      underlyingTokens: [
+        "0x6Ab7bFC2495B51535F11dA50EC4Dc936Aae6bB85",
+        "0x718a2BA87109147331Ca3b7B666aa3258F233D61",
+        "0xEdf41181fE36DC260AAD6c9fc2a765950d2d72A1",
+        "0x56d6436BeaC309F4FB47f36795776fA00736582e",
+        "0x8745a90B930F88F65dae706dd53b0d95efA0f3D5",
+        "0x1284a02705B515805e36c398475e426F2F732E2C",
+        "0x80b35F06ADc4C09c20461fCB0AEBFe06AE549CED",
+        "0x3173a6F693CA8a97f41606F9aCAc00946070DE70",
+        "0xb5234cEe66Da83b325bd647C640D9b1423e36BAE",
+        "0x9FFD2e176D968d2FA069d74316d780B0aCB3D3DC",
+      ],
+    },
   };
 
   const WBNB = await router.WETH();
@@ -100,9 +116,7 @@ export const deployIndex = async (
     if (tok === WBNB) continue;
     const pair = await factory.getPair(WBNB, tok);
     if (pair === "0x0000000000000000000000000000000000000000") {
-      if (network === "mainnet")
-        throw new Error("Cannot find pair for token" + tok);
-      else console.log("Warning missing pair");
+      throw new Error("Cannot find pair for token" + tok);
     }
   }
 
@@ -118,11 +132,13 @@ export const deployIndex = async (
     WBNB,
     addrs.tokens.BUSD
   );
+  console.log(weights);
   const tx = await controller.createIndexPool(
     activeIndex.name,
     activeIndex.symbol,
     activeIndex.underlyingTokens,
-    weights,
+    // weights,
+    activeIndex.weights,
     [0],
     {
       gasLimit: 5000000,
@@ -130,30 +146,30 @@ export const deployIndex = async (
   );
   const receipt = await tx.wait();
   return {
-    LI: receipt.events[1].args.index,
+    LI: receipt.events[3].args.index,
     indexController,
   };
 };
 
-program
-  .option("--lev [address]", "lev address")
-  .option("--teamsharing [address]", "team sharing contract option");
-
-program.parse(process.argv);
-
-const options = program.opts();
-
 const main = async () => {
-  options.lev = "0x84eA74d481Ee0A5332c457a4d796187F6Ba67fEB";
-  options.teamSharing = "0xc3e53F4d16Ae77Db1c982e75a937B9f60FE63690";
-
   const { controller } = await deployIndexController(
-    options.lev,
-    options.teamSharing
+    addresses[network].tokens.LEV,
+    addresses[network].teamSharing
   );
+  //const controller = new ethers.Contract(
+  //  "0xC40c373a370Ab76f25f987eBFA3Dad0dc4219944",
+  //  ControllerArtifact.abi,
+  //  (await ethers.getSigners())[0]
+  //);
+  if (network !== "mainnet") {
+    return {
+      TEST: await deployIndex(addresses[network], controller.address, "TEST"),
+      controller: controller.address,
+    };
+  }
   return {
-    LI: await deployIndex(addresses.mainnet, controller.address, "LI"),
-    DBI: await deployIndex(addresses.mainnet, controller.address, "DBI"),
+    LI: await deployIndex(addresses[network], controller.address, "LI"),
+    DBI: await deployIndex(addresses[network], controller.address, "DBI"),
     controller: controller.address,
   };
 };

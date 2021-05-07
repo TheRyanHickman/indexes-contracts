@@ -1,4 +1,5 @@
 import "@nomiclabs/hardhat-waffle";
+import "hardhat-gas-reporter";
 
 // You need to export an object to set up your config
 // Go to https://hardhat.org/config/ to learn more
@@ -8,7 +9,7 @@ import "@nomiclabs/hardhat-waffle";
  */
 export default {
   solidity: {
-    version: "0.8.2",
+    version: "0.8.4",
     settings: {
       optimizer: {
         enabled: true,
@@ -36,7 +37,7 @@ export default {
       url: "http://127.0.0.1:8545",
       accounts: [
         process.env.BSC_WALLET_KEY,
-        "0xdf57089febbacf7ba0bc227dafbffa9fc08a93fdc68e1e42411a14efcf23656e",
+        "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80",
       ].filter((addr) => !!addr),
     },
     adribox: {
@@ -64,5 +65,11 @@ export default {
         accountsBalance: "10000000000000000000000000",
       },
     },
+  },
+  gasReporter: {
+    currency: "USD",
+    coinmarketcap: "f23881e4-61d8-4f11-a129-280693461115",
+    gasPrice: 5,
+    enabled: process.env.REPORT_GAS ? true : false,
   },
 };

@@ -21,7 +21,7 @@ library PancakeswapUtilities {
       return IUniswapV2Pair(factory.getPair(tokA, tokB));
     }
 
-    function buyToken(address tokenToSpend, address tokenToBuy, address account, uint256 amountOut, IUniswapV2Router02 pancakeRouter) public returns(uint256, uint256) {
+    function buyToken(address tokenToSpend, address tokenToBuy, address account, uint256 amountOut, IUniswapV2Router02 pancakeRouter) external returns(uint256, uint256) {
 
       IUniswapV2Pair pair = getPair(tokenToSpend, tokenToBuy, pancakeRouter.factory());
       (uint reservesA, uint reservesB) = getReservesOrdered(pair, tokenToSpend, tokenToBuy);
@@ -41,7 +41,7 @@ library PancakeswapUtilities {
       return (amounts[1], amounts[0]);
     }
   
-    function sellToken(address tokenToSell, address paymentToken, address account, uint256 amountIn, IUniswapV2Router02 pancakeRouter) public returns(uint256, uint256) {
+    function sellToken(address tokenToSell, address paymentToken, address account, uint256 amountIn, IUniswapV2Router02 pancakeRouter) external returns(uint256, uint256) {
       IBEP20(tokenToSell).approve(address(pancakeRouter), amountIn);
       address[] memory path = new address[](2);
       path[0] = tokenToSell;

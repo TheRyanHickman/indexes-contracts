@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.0;
+pragma solidity 0.8.4;
 
-import "hardhat/console.sol";
+// import "hardhat/console.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
 import "contracts/interfaces/IBurnable.sol";
 import "contracts/interfaces/IMintable.sol";
 

@@ -1,16 +1,18 @@
 //SPDX-License-Identifier: Unlicense
-pragma solidity ^0.8.0;
+pragma solidity 0.8.4;
 
 import "./IndexPool.sol";
-import "../interfaces/IBEP20.sol";
-import "../utilities/PancakeswapUtilities.sol";
 import "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
-import "hardhat/console.sol";
+// import "hardhat/console.sol";
 
+/**
+ * This is an index controller. It creates new crypto indices and receives fees from
+ * the purchase of indices
+ */
 contract IndexController {
     string[] CATEGORIES = ["Popular"];
     IBEP20 immutable _WBNB;
-    address immutable _LEV;
+    IBEP20 immutable _LEV;
     IUniswapV2Router02 private immutable _pancakeRouter;
     IndexPool[] public pools;
 
@@ -28,7 +30,7 @@ contract IndexController {
         address teamSharing
     ) {
         _WBNB = IBEP20(__WBNB);
-        _LEV = LEV;
+        _LEV = IBEP20(LEV);
         _pancakeRouter = IUniswapV2Router02(pancakeRouter);
         _teamSharing = teamSharing;
     }
@@ -82,7 +84,7 @@ contract IndexController {
     function _buyLEV(uint256 amountBNB, address to) private {
         PancakeswapUtilities.sellToken(
             address(_WBNB),
-            _LEV,
+            address(_LEV),
             to,
             amountBNB,
             _pancakeRouter

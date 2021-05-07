@@ -39,7 +39,9 @@ export const deployPair = async (
   }
   let tx;
   try {
-    tx = await pancakeFactory.createPair(tokenA.address, tokenB.address);
+    tx = await pancakeFactory.createPair(tokenA.address, tokenB.address, {
+      gasLimit: 5000000,
+    });
     await tx.wait();
   } catch (err) {
     console.error(err.message);
@@ -59,7 +61,10 @@ export const deployPair = async (
     tokenAAmount,
     tokenBAmount,
     owner.address,
-    block.timestamp + 600
+    block.timestamp + 600,
+    {
+      gasLimit: 5000000,
+    }
   );
   return new ethers.Contract(pair, uniswapPairArtifact.abi, router.signer);
 };
@@ -70,7 +75,7 @@ export const deployPancakeExchange = async (
 ) => {
   const BNBFactory = await ethers.getContractFactory("WBNB");
   const BNB = await BNBFactory.deploy();
-  await BNB.deposit({ value: expandTo18Decimals(30000) });
+  await BNB.deposit({ value: expandTo18Decimals(2) });
   const Router = await ethers.getContractFactory(
     RouterAbi.abi,
     RouterAbi.bytecode
@@ -84,20 +89,20 @@ export const deployPancakeExchange = async (
     pancakeFactory.address,
     BNB.address
   );
+  await pancakeRouter.deployed();
   let pairs: Record<string, Contract> = {};
 
   for (const token of Object.keys(tokens)) {
     try {
       pairs[token] = await deployPair(
         BNB,
-        expandTo18Decimals(500),
+        expandTo18Decimals(200),
         tokens[token].contract,
         tokens[token].liquidity,
         pancakeRouter,
         owner
       );
     } catch (err) {
-      console.log("Deploy pair", err.message);
       throw err;
     }
   }

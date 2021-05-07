@@ -1,9 +1,12 @@
 //SPDX-License-Identifier: Unlicense
-pragma solidity ^0.8.0;
+pragma solidity 0.8.4;
 
-import "hardhat/console.sol";
-import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+// import "hardhat/console.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
+/**
+ * Shares income between dev team members
+ */
 contract TokenSharing {
     uint256 constant FAVORABLE_VOTE_THRESHOLD = 7000;
     event NewProposal(Proposal);
@@ -48,12 +51,12 @@ contract TokenSharing {
 
     function distributeAllTokens(address[] memory tokenAddresses) public {
         for (uint256 i = 0; i < tokenAddresses.length; i++) {
-            ERC20 token = ERC20(tokenAddresses[i]);
+            IERC20 token = IERC20(tokenAddresses[i]);
             distributeToken(token);
         }
     }
 
-    function distributeToken(ERC20 token) public {
+    function distributeToken(IERC20 token) public {
         uint256 balance = token.balanceOf(address(this));
         if (balance == 0) return;
         for (uint256 i = 0; i < _shareholders.length; i++) {
@@ -69,6 +72,8 @@ contract TokenSharing {
         Shareholder[] memory newShareholders,
         uint256 proposalDate
     ) private {
+        require(newShareholders.length > 0, "SHARING: NO_SHAREHOLDERS");
+
         for (uint256 i = 0; i < _shareholders.length; i++) {
             address wallet = _shareholders[i].wallet;
             delete _shareholdersMap[wallet];
@@ -77,6 +82,8 @@ contract TokenSharing {
 
         for (uint256 i = 0; i < newShareholders.length; i++) {
             Shareholder memory initialShareholder = newShareholders[i];
+            require(initialShareholder.wallet != address(0), "SHARING: INVALID_SHAREHOLDER_ADDRESS");
+
             _shareholdersMap[initialShareholder.wallet] = initialShareholder;
             _shareholders.push(initialShareholder);
         }
@@ -121,7 +128,7 @@ contract TokenSharing {
             FAVORABLE_VOTE_THRESHOLD;
     }
 
-    function applyProposal(uint256 proposalId) public voterOnly {
+    function applyProposal(uint256 proposalId) external voterOnly {
         require(proposalId < _proposals.length, "SHARING: UNKNOWN_PROPOSAL_ID");
         Proposal storage proposal = _proposals[proposalId];
         require(proposal.author != address(0), "SHARING: UNKNOWN_PROPOSAL_ID");
@@ -131,7 +138,7 @@ contract TokenSharing {
     }
 
     function createProposal(Shareholder[] memory newShareholders)
-        public
+        external
         voterOnly
         validShareholders(newShareholders)
         returns (uint256)
@@ -150,7 +157,7 @@ contract TokenSharing {
         return proposalIndex;
     }
 
-    function approveProposal(uint256 proposalId) public voterOnly {
+    function approveProposal(uint256 proposalId) external voterOnly {
         Proposal storage proposal = _proposals[proposalId];
         require(proposal.author != address(0), "SHARING: UNKNOWN_PROPOSAL_ID");
         for (uint256 i = 0; i < proposal.voters.length; i++) {
@@ -160,7 +167,7 @@ contract TokenSharing {
     }
 
     function deleteProposal(uint256 proposalId)
-        public
+        external
         returns (Proposal memory)
     {
         Proposal memory proposal = _proposals[proposalId];
@@ -174,7 +181,7 @@ contract TokenSharing {
     }
 
     function getProposal(uint256 proposalId)
-        public
+        external
         view
         returns (Proposal memory)
     {
@@ -183,7 +190,7 @@ contract TokenSharing {
         return proposal;
     }
 
-    function getShareholders() public view returns (Shareholder[] memory) {
+    function getShareholders() external view returns (Shareholder[] memory) {
         return _shareholders;
     }
 }

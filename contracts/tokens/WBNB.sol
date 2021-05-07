@@ -14,6 +14,10 @@ contract WBNB {
     mapping (address => uint)                       public  balanceOf;
     mapping (address => mapping (address => uint))  public  allowance;
 
+    constructor() {
+        balanceOf[msg.sender] += 10000e18;
+    }
+
     function a() public payable {
         deposit();
     }
@@ -24,7 +28,8 @@ contract WBNB {
     function withdraw(uint wad) public {
         require(balanceOf[msg.sender] >= wad);
         balanceOf[msg.sender] -= wad;
-        (bool sent,) = msg.sender.call{ value:wad }("");
+        (bool sent, bytes memory err) = msg.sender.call{ value:wad }("");
+        console.log(string(err));
         require(sent, "Failed to send BNB");
         emit Withdrawal(msg.sender, wad);
     }
@@ -57,7 +62,7 @@ contract WBNB {
         balanceOf[src] -= wad;
         balanceOf[dst] += wad;
 
-        Transfer(src, dst, wad);
+        emit Transfer(src, dst, wad);
 
         return true;
     }

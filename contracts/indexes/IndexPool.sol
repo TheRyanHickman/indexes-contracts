@@ -1,17 +1,26 @@
 //SPDX-License-Identifier: Unlicense
-pragma solidity ^0.8.0;
+pragma solidity 0.8.4;
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@uniswap/v2-core/contracts/interfaces/IUniswapV2Pair.sol";
 import "@uniswap/v2-core/contracts/interfaces/IUniswapV2Factory.sol";
 import "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
+
 import "contracts/utilities/PancakeswapUtilities.sol";
 import "contracts/tokens/WBNB.sol";
+
 import "./IndexController.sol";
+
 // import "hardhat/console.sol";
 
-contract IndexPool is ERC20, Ownable {
+/**
+This is a crypto index contract. It is create by the IndexController
+Tracks a group of cryptocurrencies prices. You can purchase this ERC20 and
+sell it for the price of the tokens it's tracking. It's like buying an ETF.
+*/
+contract IndexPool is ERC20, Ownable, ReentrancyGuard {
     address private immutable _indexController;
     WBNB private immutable _WBNB;
     IUniswapV2Router02 private _pancakeRouter;
@@ -57,6 +66,9 @@ contract IndexPool is ERC20, Ownable {
         emit CompositionChange(underlyingTokens, tokenWeights);
     }
 
+    /*
+    ** purchase at least amountOut of the index paying with a BEP20 token
+    */
     function buyIndexWith(uint amountOut, address paymentToken, uint amountInMax) external {
         uint quote = getIndexQuoteWithFee(amountOut);
         ERC20(paymentToken).transferFrom(msg.sender, address(this), amountInMax);
@@ -65,6 +77,9 @@ contract IndexPool is ERC20, Ownable {
         return _buyIndex(amountOut, quote);
     }
 
+    /*
+    ** purchase at least amountOut of the index paying with BNB
+    */
     function buyIndex(uint amountOut) external payable {
         uint quote = getIndexQuoteWithFee(amountOut);
         uint amountIn = msg.value;
@@ -75,7 +90,7 @@ contract IndexPool is ERC20, Ownable {
         return _buyIndex(amountOut, quote);
     }
 
-    function _buyIndex(uint256 amountOut, uint256 amountIn) private {
+    function _buyIndex(uint256 amountOut, uint256 amountIn) private nonReentrant {
         uint256 totalTokensBought = 0;
         uint totalSpent = 0;
         for (uint256 i = 0; i < _underlyingTokens.length; i++) {
@@ -106,7 +121,7 @@ contract IndexPool is ERC20, Ownable {
         emit Mint(msg.sender, amountOutResult, totalSpent);
     }
 
-    function sellIndex(uint amount, uint amountOutMin) external returns(uint) {
+    function sellIndex(uint amount, uint amountOutMin) external nonReentrant returns(uint) {
         require(amount <= balanceOf(msg.sender), "IndexPool: INSUFFICIENT_BALANCE");
 
         uint256 totalTokensSold = 0;
@@ -134,12 +149,16 @@ contract IndexPool is ERC20, Ownable {
         uint256 amountToBurn = (totalTokensSold * WEIGHT_FACTOR) / _sum(_tokenWeights);
         uint fee = getFee(amountToPayUser);
         _collectFee(fee);
+
         amountToPayUser -= fee;
         _WBNB.withdraw(amountToPayUser);
+
         _burn(msg.sender, amountToBurn);
+
         (bool sent,) = msg.sender.call{ value: amountToPayUser }("");
         require(sent, "IndexPool: SEND_BNB_FAIL");
         emit Burn(msg.sender, amountToBurn, amountToPayUser);
+
         require(amountToPayUser >= amountOutMin, "IndexPool: AMOUNT_OUT_TOO_LOW");
         return amountToPayUser;
     }
@@ -147,9 +166,7 @@ contract IndexPool is ERC20, Ownable {
     receive() external payable {
     }
 
-    fallback () external payable {
-    }
-
+    // get the total price of the index in BNB (from Pancakeswap)
     function getIndexQuote(uint amount) public view returns (uint256) {
         uint256 total = 0;
         for (uint256 i = 0; i < _underlyingTokens.length; i++) {
@@ -168,6 +185,7 @@ contract IndexPool is ERC20, Ownable {
         return amount / 100; // 1% fee
     }
 
+    // get the price of a token in BNB (from Pancakeswap)
     function getTokenQuote(address token, uint amount) public view returns (uint256) {
         if (token == address(_WBNB))
             return amount;
@@ -200,6 +218,7 @@ contract IndexPool is ERC20, Ownable {
     }
 
     function _collectFee(uint256 amount) private {
+        // external calls to trusted contracts
         _WBNB.transfer(_indexController, amount);
         IndexController(_indexController).redistributeFees();
     }
@@ -253,6 +272,7 @@ contract IndexPool is ERC20, Ownable {
     */
     function emergencyWithdraw() external {
         uint userBalance = this.balanceOf(msg.sender);
+
         for (uint i = 0; i < _underlyingTokens.length; i++) {
             uint entitledAmount = userBalance * _tokenWeights[i] / WEIGHT_FACTOR;
             ERC20 token = ERC20(_underlyingTokens[i]);

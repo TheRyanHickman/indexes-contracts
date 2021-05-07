@@ -8,4 +8,4 @@ export const deployPancakeUtilities = async () => {
   return utilities.address;
 };
 
-//deployPancakeUtilities().then(console.log);
+deployPancakeUtilities().then(console.log);

@@ -78,7 +78,7 @@ describe("Pool Controller", function () {
     const pool = new Contract(poolAddress, poolAbi.abi, owner);
 
     const price = await pool.getIndexQuote(expandTo18Decimals(1));
-    expect(price).to.equal(BigNumber.from("196304132126727219"));
+    expect(price).to.equal(BigNumber.from("137921652850690888"));
     const priceWFee = await pool.getIndexQuoteWithFee(expandTo18Decimals(1));
     await pool.buyIndex(expandTo18Decimals(1), {
       value: priceWFee,

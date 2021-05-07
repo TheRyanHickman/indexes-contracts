@@ -2,7 +2,7 @@
   "name": "hardhat-project",
   "scripts": {
     "build": "hardhat compile",
-    "test": "hardhat test",
+    "test": "COINMARKETCAP_API_KEY='f23881e4-61d8-4f11-a129-280693461115' REPORT_GAS='true' hardhat test",
     "deploy:testnet": "hardhat run --network testnet ./scripts/deploy-run.ts",
     "deploy:ropsten": "hardhat run --network ropsten ./scripts/deploy-run.ts",
     "deploy:localhost": "hardhat run --network localhost ./scripts/deploy-run.ts"
@@ -20,6 +20,7 @@
     "ethereum-waffle": "^3.3.0",
     "ethers": "^5.0.32",
     "hardhat": "^2.2.0",
+    "hardhat-gas-reporter": "^1.0.4",
     "ts-node": "^9.1.1",
     "typescript": "^4.2.3"
   },

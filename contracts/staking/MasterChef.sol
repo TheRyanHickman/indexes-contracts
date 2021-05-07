@@ -64,7 +64,7 @@ contract MasterChef is Ownable {
     // pool for LEV rewards
     RewardBar public syrup;
     // Dev address.
-    address public devaddr;
+    address public immutable devaddr;
     // CAKE tokens created per block.
     uint256 public cakePerBlock;
     // Bonus muliplier for early cake makers.
@@ -354,11 +354,5 @@ contract MasterChef is Ownable {
         if (totalPendingLEV == 0)
             return 0;
         return pendingLEV * poolBUSDBalance / totalPendingLEV;
-    }
-
-    // Update dev address by the previous dev.
-    function dev(address _devaddr) public {
-        require(msg.sender == devaddr, "dev: wut?");
-        devaddr = _devaddr;
     }
 }

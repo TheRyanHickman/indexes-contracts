@@ -18,9 +18,11 @@ const deployIndexController = async (LEV: string, teamSharing: string) => {
   });
   const ctr = await ControllerFactory.deploy(
     addrs.tokens.WBNB,
+    addrs.tokens.BUSD,
     LEV,
     addrs.pancakeRouter,
-    teamSharing
+    teamSharing,
+    addrs.tokens.SLEV
   );
   return {
     controller: ctr,

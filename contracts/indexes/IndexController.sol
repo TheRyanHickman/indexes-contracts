@@ -12,27 +12,34 @@ import "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
 contract IndexController {
     string[] CATEGORIES = ["Popular"];
     IBEP20 immutable _WBNB;
+    IBEP20 immutable _BUSD;
     IBEP20 immutable _LEV;
     IUniswapV2Router02 private immutable _pancakeRouter;
     IndexPool[] public pools;
 
-    uint256 constant buybackRewardPart = 750;
+    uint256 constant buybackRewardPart = 500;
+    uint256 constant stakerPart = 250;
     uint256 constant devTeamRewardPart = 250;
     address immutable _teamSharing;
+    address immutable _rewardBar;
 
     event DeployIndex(address index);
     event RedistributeFees(uint256 amount);
 
     constructor(
         address __WBNB,
+        address BUSD,
         address LEV,
         address pancakeRouter,
-        address teamSharing
+        address teamSharing,
+        address rewardBar
     ) {
         _WBNB = IBEP20(__WBNB);
+        _BUSD = IBEP20(BUSD);
         _LEV = IBEP20(LEV);
         _pancakeRouter = IUniswapV2Router02(pancakeRouter);
         _teamSharing = teamSharing;
+        _rewardBar = rewardBar;
     }
 
     function createIndexPool(
@@ -48,7 +55,7 @@ contract IndexController {
                 symbol,
                 underlyingTokens,
                 weights,
-                address(_WBNB),
+                address(_BUSD),
                 address(_pancakeRouter),
                 address(this),
                 categories
@@ -63,31 +70,41 @@ contract IndexController {
      ** - buy back LEV to burn
      ** - reward the dev team
      */
-    function redistributeFees() external {
-        uint256 totalFees = _WBNB.balanceOf(address(this));
+    function redistributeFees(IBEP20 token) external {
+        uint256 totalFees = token.balanceOf(address(this));
         uint256 remainingToRedistribute = totalFees;
         uint256 buybackPart =
             (remainingToRedistribute * buybackRewardPart) / 1000;
         // We buy LEV that we can't spend (=burn)
-        _buyLEV(buybackPart, address(this));
+        _buyLEV(address(token), buybackPart, address(this));
         remainingToRedistribute -= buybackPart;
         uint256 devTeamAmount =
             (remainingToRedistribute * devTeamRewardPart) / 1000;
-        _WBNB.transfer(_teamSharing, devTeamAmount);
+        token.transfer(_teamSharing, devTeamAmount);
         remainingToRedistribute -= devTeamAmount;
+
+        if (token != _BUSD)
+            convertFeeToBUSD(remainingToRedistribute, _rewardBar);
+        else
+            _BUSD.transfer(_rewardBar, _BUSD.balanceOf(address(this)));
+
         emit RedistributeFees(totalFees);
     }
 
     /*
      ** Some of the index purchase fees are used to buy back LEV and reduce the total supply
      */
-    function _buyLEV(uint256 amountBNB, address to) private {
+    function _buyLEV(address token, uint256 amountBNB, address to) private {
         PancakeswapUtilities.sellToken(
-            address(_WBNB),
+            address(token),
             address(_LEV),
             to,
             amountBNB,
             _pancakeRouter
         );
+    }
+
+    function convertFeeToBUSD(uint256 amountIn, address target) private {
+        PancakeswapUtilities.sellToken(address(_WBNB), address(_BUSD), target, amountIn, _pancakeRouter);
     }
 }

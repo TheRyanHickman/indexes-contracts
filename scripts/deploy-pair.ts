@@ -18,7 +18,7 @@ export const deployPairWithPresets = async (
   const routerContract = new ethers.Contract(routerAddr, router.abi, signer);
   const pair = await deployPair(
     tokenA,
-    expandTo18Decimals(1000),
+    expandTo18Decimals(200),
     tokenB,
     expandTo18Decimals(overridePrice),
     routerContract,

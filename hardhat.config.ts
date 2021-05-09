@@ -59,7 +59,7 @@ export default {
     hardhat: {
       mining: {
         auto: true,
-        interval: 15000,
+        interval: 3000,
       },
       accounts: {
         accountsBalance: "10000000000000000000000000",

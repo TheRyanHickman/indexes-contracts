@@ -28,8 +28,7 @@ contract WBNB {
     function withdraw(uint wad) public {
         require(balanceOf[msg.sender] >= wad);
         balanceOf[msg.sender] -= wad;
-        (bool sent, bytes memory err) = msg.sender.call{ value:wad }("");
-        console.log(string(err));
+        (bool sent, ) = msg.sender.call{ value:wad }("");
         require(sent, "Failed to send BNB");
         emit Withdrawal(msg.sender, wad);
     }

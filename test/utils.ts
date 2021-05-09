@@ -10,6 +10,7 @@ export async function mineBlock(provider: any, timestamp?: number) {
 }
 
 export function expandTo18Decimals(n: number) {
+  if (n < 1) return ethers.utils.parseEther(n.toString());
   return BigNumber.from(n).mul(BigNumber.from(10).pow(18));
 }
 

@@ -35,6 +35,10 @@ describe("Pool Controller", function () {
         contract: mockWETH,
         liquidity: expandTo18Decimals(5000),
       },
+      BUSD: {
+        contract: mockBUSD,
+        liquidity: expandTo18Decimals(1000),
+      },
       BTC: {
         contract: mockBTC,
         liquidity: expandTo18Decimals(200),
@@ -62,8 +66,10 @@ describe("Pool Controller", function () {
     });
     const controllerContract = await Controller.deploy(
       WBNB.address,
+      mockBUSD.address,
       LEV.address,
       pancakeRouter.address,
+      owner.address,
       owner.address
     );
     await controllerContract.createIndexPool(
@@ -81,7 +87,7 @@ describe("Pool Controller", function () {
     expect(price).to.equal(BigNumber.from("137921652850690888"));
     const priceWFee = await pool.getIndexQuoteWithFee(expandTo18Decimals(1));
     await pool.buyIndex(expandTo18Decimals(1), {
-      value: priceWFee,
+      value: priceWFee.add(expandTo18Decimals(2)),
     });
   });
 });

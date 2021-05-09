@@ -1,11 +1,11 @@
 import { Contract } from "@ethersproject/contracts";
+import fs from "fs";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import WBNBArtifact from "../artifacts/contracts/tokens/WBNB.sol/WBNB.json";
-import { addresses } from "./deploy";
 import { deployLEV } from "./deploy-tokens";
 import { deployPairWithPresets } from "./deploy-pair";
 import deployTeamSharing from "./deploy-team-sharing";
-import { ethers, network } from "hardhat";
+import { ethers } from "hardhat";
 import { expandTo18Decimals } from "../test/utils";
 
 const deploySushibar = async (rewardToken: string) => {
@@ -36,7 +36,7 @@ const deployMasterChef = async (
 
 export const main = async () => {
   const [owner] = await ethers.getSigners();
-  const addrs = addresses[network.name];
+  const addrs = require("../addresses-mainnet.json");
   const teamSharing = await deployTeamSharing();
   await teamSharing.deployed();
   console.log("Team sharing done");
@@ -56,18 +56,19 @@ export const main = async () => {
   // obtain wbnb for liquidity
   const WBNB = new Contract(addrs.tokens.WBNB, WBNBArtifact.abi, owner);
   await WBNB.deposit({ value: expandTo18Decimals(2) });
+  console.log("ok now lets deploy pairs");
   const LEVBNB = await deployPairWithPresets(
     LEV.address,
     addrs.tokens.WBNB,
-    addrs.pancakeRouter
+    addrs.pancakeRouter,
+    0.032
   );
 
-  console.log("ok now lets deploy pair");
   const LEVBUSD = await deployPairWithPresets(
     LEV.address,
     addrs.tokens.BUSD,
     addrs.pancakeRouter,
-    10000
+    20
   );
 
   await SLEV.transferOwnership(masterChef.address);
@@ -78,13 +79,22 @@ export const main = async () => {
   await masterChef.add(1000, LEVBUSD, false);
 
   return {
+    ...addrs,
     masterChef: masterChef.address,
-    LEV: LEV.address,
     teamSharing: teamSharing.address,
-    SLEV: SLEV.address,
+    tokens: {
+      ...addrs.tokens,
+      LEV: LEV.address,
+      SLEV: SLEV.address,
+      LEVBNB,
+      LEVBUSD,
+    },
     LEVBNB: 1,
     LEVBUSD: 2,
   };
 };
 
-main().then(console.log);
+main().then((result) => {
+  console.log(result);
+  fs.writeFileSync("addresses-mainnet.json", JSON.stringify(result, null, 2));
+});

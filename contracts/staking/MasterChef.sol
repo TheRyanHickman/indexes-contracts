@@ -355,4 +355,9 @@ contract MasterChef is Ownable {
             return 0;
         return pendingLEV * poolBUSDBalance / totalPendingLEV;
     }
+
+    // owner of masterchef (governance) can recover ownership in order to change how LEV is minted
+    function recoverLevOwnership() external onlyOwner {
+        lev.transferOwnership(msg.sender);
+    }
 }

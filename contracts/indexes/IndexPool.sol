@@ -70,11 +70,13 @@ contract IndexPool is ERC20, Ownable, ReentrancyGuard {
     ** purchase at least amountOut of the index paying with a BEP20 token
     */
     function buyIndexWith(uint amountOut, address paymentToken, uint amountInMax) external {
-        uint quote = getIndexQuoteWithFee(amountOut);
+        require(paymentToken == address(_WBNB) || paymentToken == address(_BUSD), "IndexPool: INVALID_PAYMENT_TOKEN");
+        uint quote = getIndexQuote(amountOut);
         ERC20(paymentToken).transferFrom(msg.sender, address(this), amountInMax);
+        _collectFee(amountInMax / 100, paymentToken);
         (, uint spent) = PancakeswapUtilities.buyToken(paymentToken, address(_WBNB), address(this), quote, _pancakeRouter);
         require(spent <= amountInMax, "IndexPool: INSUFFICIENT_AMOUNT_IN_MAX");
-        return _buyIndex(amountOut, quote);
+        _buyIndex(amountOut, quote);
     }
 
     /*
@@ -87,10 +89,11 @@ contract IndexPool is ERC20, Ownable, ReentrancyGuard {
         _WBNB.deposit{value: quote}();
         (bool sent,) = msg.sender.call{ value: amountIn - quote }("");
         require(sent, "IndexPool: BNB_REFUND_FAIL");
-        return _buyIndex(amountOut, quote);
+        uint256 remainingWBNB = _buyIndex(amountOut, quote);
+        _collectFee(remainingWBNB, address(_WBNB));
     }
 
-    function _buyIndex(uint256 amountOut, uint256 amountIn) private nonReentrant {
+    function _buyIndex(uint256 amountOut, uint256 amountIn) private nonReentrant returns (uint256) {
         uint256 totalTokensBought = 0;
         uint totalSpent = 0;
         for (uint256 i = 0; i < _underlyingTokens.length; i++) {
@@ -114,11 +117,9 @@ contract IndexPool is ERC20, Ownable, ReentrancyGuard {
 
         uint256 amountOutResult = (totalTokensBought * WEIGHT_FACTOR) / _sum(_tokenWeights);
 
-        uint remainingBNB = amountIn - totalSpent;
-        require(remainingBNB == getFee(totalSpent), "INCORRECT_REMAINING_BNB");
-        _collectFee(remainingBNB);
         _mint(msg.sender, amountOutResult);
         emit Mint(msg.sender, amountOutResult, totalSpent);
+        return amountIn - totalSpent;
     }
 
     function sellIndex(uint amount, uint amountOutMin) external nonReentrant returns(uint) {
@@ -148,7 +149,7 @@ contract IndexPool is ERC20, Ownable, ReentrancyGuard {
         }
         uint256 amountToBurn = (totalTokensSold * WEIGHT_FACTOR) / _sum(_tokenWeights);
         uint fee = getFee(amountToPayUser);
-        _collectFee(fee);
+        _collectFee(fee, address(_WBNB));
 
         amountToPayUser -= fee;
         _WBNB.withdraw(amountToPayUser);
@@ -217,10 +218,10 @@ contract IndexPool is ERC20, Ownable, ReentrancyGuard {
         return total;
     }
 
-    function _collectFee(uint256 amount) private {
+    function _collectFee(uint256 amount, address token) private {
         // external calls to trusted contracts
-        _WBNB.transfer(_indexController, amount);
-        IndexController(_indexController).redistributeFees();
+        ERC20(token).transfer(_indexController, amount);
+        IndexController(_indexController).redistributeFees(IBEP20(token));
     }
 
     function changeWeights(uint16[] memory weights) external onlyOwner {

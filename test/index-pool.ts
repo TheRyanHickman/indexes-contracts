@@ -120,6 +120,14 @@ describe("Index Pool", function () {
       pancakeRouter,
       owner
     );
+    await deployPair(
+      mockBUSD,
+      expandTo18Decimals(500),
+      LEV,
+      expandTo18Decimals(200),
+      pancakeRouter,
+      owner
+    );
 
     const Controller = await ethers.getContractFactory("IndexController", {
       libraries: {
@@ -128,8 +136,10 @@ describe("Index Pool", function () {
     });
     indexController = await Controller.deploy(
       WBNB.address,
+      mockBUSD.address,
       LEV.address,
       pancakeRouter.address,
+      devTeam.address,
       devTeam.address
     );
   });
@@ -205,13 +215,12 @@ describe("Index Pool", function () {
     // buy index
     const price = await pool.getIndexQuoteWithFee(expandTo18Decimals(2));
     const devTeamBalanceBefore = await WBNB.balanceOf(devTeam.address);
-    const priceWOFee = await pool.getIndexQuote(expandTo18Decimals(2));
     await pool.buyIndex(expandTo18Decimals(2), {
       value: price,
     });
     const devTeamBalanceAfter = await WBNB.balanceOf(devTeam.address);
     const mintFees = devTeamBalanceAfter.sub(devTeamBalanceBefore);
-    expect(mintFees).to.equal("6240626145968");
+    expect(mintFees).to.equal("10183322935430");
 
     // burn half of what we have
     await pool.sellIndex(expandTo18Decimals(1), price.mul(48).div(100));
@@ -273,7 +282,7 @@ describe("Index Pool", function () {
     );
     const priceUSD = expandTo18Decimals(price).div(quoteForBUSD);
     await mockBUSD.approve(pool.address, priceUSD.mul(110).div(100));
-    pool.buyIndexWith(
+    await pool.buyIndexWith(
       expandTo18Decimals(2),
       mockBUSD.address,
       priceUSD.mul(110).div(100)

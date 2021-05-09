@@ -6,6 +6,6 @@ export const deployLEV = async (owner: SignerWithAddress) => {
   const LevFactory = await ethers.getContractFactory("LEVToken");
   return LevFactory.deploy(
     owner.address,
-    expandTo18Decimals(5000000) // 5,000,000
+    expandTo18Decimals(10000000) // 10,000,000
   );
 };

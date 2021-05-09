@@ -1,32 +1,16 @@
-import { BigNumber, Contract } from "ethers";
-import {
-  deployPair,
-  deployPancakeUtilities,
-  getPancakeFactory,
-  getPancakeLibrary,
-  getPancakeRouter,
-  getPancakeswapUtilities,
-} from "../test/pancakeswap";
+import { getPancakeFactory, getPancakeRouter } from "../test/pancakeswap";
 import hre, { ethers } from "hardhat";
 
-import { Command } from "commander";
 import ControllerArtifact from "../artifacts/contracts/indexes/IndexController.sol/IndexController.json";
-import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
-import WBNBArtifact from "../artifacts/contracts/tokens/WBNB.sol/WBNB.json";
-import { addresses } from "./deploy";
-import assert from "assert";
 import { computeTargetWeights } from "./calculate-weights";
-import { deployMockToken } from "../test/token";
-import { expandTo18Decimals } from "../test/utils";
-
-const program = new Command();
+import fs from "fs";
 
 let network = hre.network.name;
+const addrs = require("../addresses-mainnet.json");
 
 const deployIndexController = async (LEV: string, teamSharing: string) => {
   const [owner] = await ethers.getSigners();
 
-  const addrs = addresses[network];
   const ControllerFactory = await ethers.getContractFactory("IndexController", {
     libraries: {
       PancakeswapUtilities: addrs.pancakeUtilities,
@@ -145,33 +129,34 @@ export const deployIndex = async (
     }
   );
   const receipt = await tx.wait();
-  return {
-    LI: receipt.events[3].args.index,
-    indexController,
-  };
+  return receipt.events[3].args.index;
 };
 
 const main = async () => {
   const { controller } = await deployIndexController(
-    addresses[network].tokens.LEV,
-    addresses[network].teamSharing
+    addrs.tokens.LEV,
+    addrs.teamSharing
   );
   //const controller = new ethers.Contract(
   //  "0xC40c373a370Ab76f25f987eBFA3Dad0dc4219944",
   //  ControllerArtifact.abi,
   //  (await ethers.getSigners())[0]
   //);
-  if (network !== "mainnet") {
+  if (false && network !== "mainnet") {
     return {
-      TEST: await deployIndex(addresses[network], controller.address, "TEST"),
+      TEST: await deployIndex(addrs, controller.address, "TEST"),
       controller: controller.address,
     };
   }
   return {
-    LI: await deployIndex(addresses[network], controller.address, "LI"),
-    DBI: await deployIndex(addresses[network], controller.address, "DBI"),
+    ...addrs,
+    LI: await deployIndex(addrs, controller.address, "LI"),
+    DBI: await deployIndex(addrs, controller.address, "DBI"),
     controller: controller.address,
   };
 };
 
-main().then(console.log);
+main().then((result) => {
+  console.log(result);
+  fs.writeFileSync("addresses-mainnet.json", JSON.stringify(result, null, 2));
+});

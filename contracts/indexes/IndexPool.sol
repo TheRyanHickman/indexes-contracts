@@ -28,7 +28,7 @@ contract IndexPool is ERC20, Ownable, ReentrancyGuard {
     ERC20 private immutable _BUSD;
     address[] _underlyingTokens;
     uint16[] _tokenWeights;
-    uint16 WEIGHT_FACTOR = 1000;
+    uint16 constant WEIGHT_FACTOR = 1000;
     uint8[] _categories;
 
     event Mint(address indexed to, uint256 amount, uint256 cost);

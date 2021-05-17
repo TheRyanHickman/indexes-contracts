@@ -49,6 +49,8 @@ contract IndexController {
         uint16[] memory weights,
         uint8[] memory categories
     ) external {
+        require(weights.length == underlyingTokens.length, "IndexController: ARRAY_SIZE_NOT_EQUAL");
+        require(weights.length > 0, "IndexController: MISSING_UNDERLYING_TOKENS");
         IndexPool pool =
             new IndexPool(
                 name,
@@ -80,8 +82,8 @@ contract IndexController {
         remainingToRedistribute -= buybackPart;
         uint256 devTeamAmount =
             (remainingToRedistribute * devTeamRewardPart) / 1000;
-        token.transfer(_teamSharing, devTeamAmount);
         remainingToRedistribute -= devTeamAmount;
+        token.transfer(_teamSharing, devTeamAmount);
 
         if (token != _BUSD)
             convertFeeToBUSD(remainingToRedistribute, _rewardBar);

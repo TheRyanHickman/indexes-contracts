@@ -273,7 +273,7 @@ contract IndexPool is ERC20, Ownable, ReentrancyGuard {
     ** If something's wrong with the LPs or anything else, anyone can
     ** withdraw the index underlying tokens directly to their wallets
     */
-    function emergencyWithdraw() external {
+    function emergencyWithdraw() external nonReentrant {
         uint userBalance = this.balanceOf(msg.sender);
 
         for (uint i = 0; i < _underlyingTokens.length; i++) {

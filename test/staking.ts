@@ -102,4 +102,11 @@ describe("Staking pools", function () {
     const balanceAlice = await LEV.balanceOf(alice.address);
     expect(balanceAlice).to.equal(BigNumber.from("7201800450110000000"));
   });
+
+  it("should fail when creating the same pool twice", async () => {
+    await masterChef.add(1000, mockBUSD.address, false);
+    await expect(
+      masterChef.add(1000, mockBUSD.address, false)
+    ).to.be.revertedWith("MasterChef: POOL_ALREADY_EXISTS");
+  });
 });

@@ -8,8 +8,8 @@ import "contracts/interfaces/IBurnable.sol";
 import "contracts/interfaces/IMintable.sol";
 
 contract LEVToken is ERC20, IBurnable, IMintable, Ownable {
-    uint256 _createdAtBlock;
-    uint256 _initialSupply;
+    uint256 immutable _createdAtBlock;
+    uint256 immutable _initialSupply;
 
     // the LEV token! Masterchef contract is the owner and can mint
     constructor(

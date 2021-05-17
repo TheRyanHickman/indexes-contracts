@@ -104,9 +104,17 @@ describe("Staking pools", function () {
   });
 
   it("should fail when creating the same pool twice", async () => {
-    await masterChef.add(1000, mockBUSD.address, false);
     await expect(
       masterChef.add(1000, mockBUSD.address, false)
     ).to.be.revertedWith("MasterChef: POOL_ALREADY_EXISTS");
+  });
+
+  it("should fail when pool doesn't exist", async () => {
+    await expect(masterChef.updatePool(42)).to.be.revertedWith(
+      "MasterChef: INVALID_PID"
+    );
+    await expect(masterChef.deposit(2, 1000)).to.be.revertedWith(
+      "MasterChef: INVALID_PID"
+    );
   });
 });

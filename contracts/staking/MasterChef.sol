@@ -99,6 +99,11 @@ contract MasterChef is Ownable {
         totalAllocPoint = 1000;
     }
 
+    modifier poolExists(uint256 _pid) {
+        require(_pid < poolInfo.length, "MasterChef: INVALID_PID");
+        _;
+    }
+
     function updateMultiplier(uint256 multiplierNumber) public onlyOwner {
         bonusMultiplier = multiplierNumber;
         emit UpdateMultiplier(multiplierNumber);
@@ -129,7 +134,7 @@ contract MasterChef is Ownable {
     }
 
     // Update the given pool's CAKE allocation point. Can only be called by the owner.
-    function set(uint256 _pid, uint256 _allocPoint, bool _withUpdate) public onlyOwner {
+    function set(uint256 _pid, uint256 _allocPoint, bool _withUpdate) public onlyOwner poolExists(_pid) {
         if (_withUpdate) {
             massUpdatePools();
         }
@@ -193,7 +198,7 @@ contract MasterChef is Ownable {
 
 
     // Update reward variables of the given pool to be up-to-date.
-    function updatePool(uint256 _pid) public {
+    function updatePool(uint256 _pid) poolExists(_pid) public {
 
         PoolInfo storage pool = poolInfo[_pid];
         if (block.number <= pool.lastRewardBlock) {
@@ -216,7 +221,7 @@ contract MasterChef is Ownable {
     }
 
     // Deposit LP tokens to MasterChef for CAKE allocation.
-    function deposit(uint256 _pid, uint256 _amount) public {
+    function deposit(uint256 _pid, uint256 _amount) poolExists(_pid) public {
 
         require (_pid != 0, 'deposit CAKE by staking');
 
@@ -235,7 +240,7 @@ contract MasterChef is Ownable {
     }
 
     // Withdraw LP tokens from MasterChef.
-    function withdraw(uint256 _pid, uint256 _amount) public {
+    function withdraw(uint256 _pid, uint256 _amount) poolExists(_pid) public {
 
         require (_pid != 0, 'withdraw CAKE by unstaking');
         PoolInfo storage pool = poolInfo[_pid];
@@ -303,7 +308,7 @@ contract MasterChef is Ownable {
         syrup.safeCakeTransfer(_to, _amount);
     }
 
-    function withdrawPendingRewards(uint poolId) internal {
+    function withdrawPendingRewards(uint poolId) poolExists(poolId) internal {
         PoolInfo storage pool = poolInfo[poolId];
         UserInfo storage user = userInfo[poolId][msg.sender];
         uint256 pendingLEV = user.amount * pool.accCakePerShare / 1e12 - user.rewardDebt;

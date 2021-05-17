@@ -62,13 +62,13 @@ contract MasterChef is Ownable {
     // BUSD token
     IERC20 public busd;
     // pool for LEV rewards
-    RewardBar public syrup;
+    RewardBar immutable public syrup;
     // Dev address.
     address public immutable devaddr;
     // CAKE tokens created per block.
     uint256 public cakePerBlock;
     // Bonus muliplier for early cake makers.
-    uint256 public BONUS_MULTIPLIER = 1;
+    uint256 public bonusMultiplier = 1;
     // The migrator contract. It has a lot of power. Can only be set through governance (owner).
     IMigratorChef public migrator;
 
@@ -112,7 +112,7 @@ contract MasterChef is Ownable {
     }
 
     function updateMultiplier(uint256 multiplierNumber) public onlyOwner {
-        BONUS_MULTIPLIER = multiplierNumber;
+        bonusMultiplier = multiplierNumber;
     }
 
     function poolLength() external view returns (uint256) {
@@ -181,7 +181,7 @@ contract MasterChef is Ownable {
 
     // Return reward multiplier over the given _from to _to block.
     function getMultiplier(uint256 _from, uint256 _to) public view returns (uint256) {
-        return (_to - _from) * BONUS_MULTIPLIER;
+        return (_to - _from) * bonusMultiplier;
     }
 
     // pending total lev reward to be minted for a pool

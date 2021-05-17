@@ -53,7 +53,7 @@ export const deployPair = async (
   await tx.wait();
   const block = await getLastBlock(router.provider);
 
-  await router.addLiquidity(
+  tx = await router.addLiquidity(
     tokenA.address,
     tokenB.address,
     tokenAAmount,
@@ -66,6 +66,7 @@ export const deployPair = async (
       gasLimit: 5000000,
     }
   );
+  tx.wait();
   return new ethers.Contract(pair, uniswapPairArtifact.abi, router.signer);
 };
 

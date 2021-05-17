@@ -26,7 +26,7 @@ const deployMasterChef = async (
     BUSD,
     SLEV.address,
     teamSharing.address,
-    expandTo18Decimals(5),
+    expandTo18Decimals(4), // 4 LEV per block!
     await ethers.provider.getBlockNumber(),
     {
       gasLimit: 5000000,
@@ -42,7 +42,9 @@ export const main = async () => {
   console.log("Team sharing done");
   const LEV = await deployLEV(owner);
   console.log("LEV done");
+  await LEV.deployed();
   const SLEV = await deploySushibar(LEV.address);
+  await SLEV.deployed();
   console.log("Sushibar done");
   const masterChef = await deployMasterChef(
     LEV,
@@ -51,11 +53,13 @@ export const main = async () => {
     owner,
     teamSharing
   );
+  await masterChef.deployed();
   console.log("masterchef done done");
 
   // obtain wbnb for liquidity
   const WBNB = new Contract(addrs.tokens.WBNB, WBNBArtifact.abi, owner);
-  await WBNB.deposit({ value: expandTo18Decimals(2) });
+  const tx2 = await WBNB.deposit({ value: expandTo18Decimals(2) });
+  await tx2.wait();
   console.log("ok now lets deploy pairs");
   const LEVBNB = await deployPairWithPresets(
     LEV.address,
@@ -71,8 +75,10 @@ export const main = async () => {
     20
   );
 
-  await SLEV.transferOwnership(masterChef.address);
-  await LEV.transferOwnership(masterChef.address);
+  const tx3 = await SLEV.transferOwnership(masterChef.address);
+  tx3.wait();
+  const tx4 = await LEV.transferOwnership(masterChef.address);
+  tx4.wait();
 
   const tx = await masterChef.add(1000, LEVBNB, false);
   await tx.wait();

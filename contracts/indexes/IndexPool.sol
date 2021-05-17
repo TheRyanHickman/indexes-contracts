@@ -225,6 +225,8 @@ contract IndexPool is ERC20, Ownable, ReentrancyGuard {
     }
 
     function changeWeights(uint16[] memory weights) external onlyOwner {
+        require(weights.length == _tokenWeights.length, "IndexPool: INVALID_ARRAY_LEN");
+
         int quoteBefore = int(getIndexQuote(1e18));
         uint totalSale = 0;
         for (uint i = 0; i < weights.length; i++) {

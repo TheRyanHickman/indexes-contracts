@@ -1,15 +1,17 @@
 //SPDX-License-Identifier: Unlicense
 pragma solidity 0.8.4;
 
-import "./IndexPool.sol";
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
+
+import "./IndexPool.sol";
 // import "hardhat/console.sol";
 
 /**
  * This is an index controller. It creates new crypto indices and receives fees from
  * the purchase of indices
  */
-contract IndexController {
+contract IndexController is ReentrancyGuard {
     string[] CATEGORIES = ["Popular"];
     IBEP20 immutable _WBNB;
     IBEP20 immutable _BUSD;
@@ -72,7 +74,7 @@ contract IndexController {
      ** - buy back LEV to burn
      ** - reward the dev team
      */
-    function redistributeFees(IBEP20 token) external {
+    function redistributeFees(IBEP20 token) external nonReentrant {
         uint256 totalFees = token.balanceOf(address(this));
         uint256 remainingToRedistribute = totalFees;
         uint256 buybackPart =

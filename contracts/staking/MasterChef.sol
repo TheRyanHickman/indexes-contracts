@@ -297,6 +297,9 @@ contract MasterChef is Ownable {
     function emergencyWithdraw(uint256 _pid) public {
         PoolInfo storage pool = poolInfo[_pid];
         UserInfo storage user = userInfo[_pid][msg.sender];
+        // if LEV pool burn syrup tokens
+        if (_pid == 0)
+            syrup.burn(msg.sender, user.amount);
         user.amount = 0;
         uint256 rewardDebt = user.rewardDebt;
         user.rewardDebt = 0;

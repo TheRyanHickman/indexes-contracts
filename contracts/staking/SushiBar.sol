@@ -18,7 +18,7 @@ import "hardhat/console.sol";
 //
 // This contract handles swapping to and from xSushi, SushiSwap's staking token.
 contract RewardBar is ERC20, IMintable, Ownable {
-    IERC20 public lev;
+    IERC20 immutable public lev;
 
     // Define the Sushi token contract
     constructor(IERC20 _lev) ERC20("Staked LEV", "SLEV") {

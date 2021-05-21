@@ -54,7 +54,7 @@ contract RewardBar is ERC20, IMintable, Ownable {
         // Calculates the amount of Sushi the xSushi is worth
         uint256 what = _share * lev.balanceOf(address(this)) / totalShares;
         _burn(account, _share);
-        lev.transfer(account, what);
+        require(lev.transfer(account, what), "SushiBar: LEV_TRANFER_FAILED");
     }
 
     function mint(address receiver, uint256 amount) override external onlyOwner {
@@ -74,9 +74,9 @@ contract RewardBar is ERC20, IMintable, Ownable {
     function safeTokenTransfer(address _to, uint256 _amount, IERC20 _token) public onlyOwner {
         uint256 bal = _token.balanceOf(address(this));
         if (_amount > bal) {
-            _token.transfer(_to, bal);
+            require(_token.transfer(_to, bal), "Sushibar: TRANSFER_FAILED");
         } else {
-            _token.transfer(_to, _amount);
+            require(_token.transfer(_to, _amount), "SushiBar: TRANSFER_FAILED");
         }
     }
 }

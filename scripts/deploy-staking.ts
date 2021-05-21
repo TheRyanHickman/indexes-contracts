@@ -1,12 +1,13 @@
 import { Contract } from "@ethersproject/contracts";
-import fs from "fs";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import WBNBArtifact from "../artifacts/contracts/tokens/WBNB.sol/WBNB.json";
 import { deployLEV } from "./deploy-tokens";
 import { deployPairWithPresets } from "./deploy-pair";
 import deployTeamSharing from "./deploy-team-sharing";
+import deployTimelockController from "./deploy-timelock-controller";
 import { ethers } from "hardhat";
 import { expandTo18Decimals } from "../test/utils";
+import fs from "fs";
 
 const deploySushibar = async (rewardToken: string) => {
   const SushibarFactory = await ethers.getContractFactory("RewardBar");
@@ -46,6 +47,9 @@ export const main = async () => {
   const SLEV = await deploySushibar(LEV.address);
   await SLEV.deployed();
   console.log("Sushibar done");
+
+  const timelock = await deployTimelockController();
+
   const masterChef = await deployMasterChef(
     LEV,
     addrs.tokens.BUSD,
@@ -54,6 +58,8 @@ export const main = async () => {
     teamSharing
   );
   await masterChef.deployed();
+  await masterChef.transferOwnership(timelock.address);
+
   console.log("masterchef done done");
 
   // obtain wbnb for liquidity
@@ -88,6 +94,7 @@ export const main = async () => {
     ...addrs,
     masterChef: masterChef.address,
     teamSharing: teamSharing.address,
+    timelock: timelock.address,
     tokens: {
       ...addrs.tokens,
       LEV: LEV.address,

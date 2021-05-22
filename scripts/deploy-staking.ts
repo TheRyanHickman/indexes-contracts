@@ -58,7 +58,6 @@ export const main = async () => {
     teamSharing
   );
   await masterChef.deployed();
-  await masterChef.transferOwnership(timelock.address);
 
   console.log("masterchef done done");
 
@@ -89,6 +88,8 @@ export const main = async () => {
   const tx = await masterChef.add(1000, LEVBNB, false);
   await tx.wait();
   await masterChef.add(1000, LEVBUSD, false);
+
+  await masterChef.transferOwnership(timelock.address);
 
   return {
     ...addrs,

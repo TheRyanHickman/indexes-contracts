@@ -25,38 +25,6 @@ contract RewardBar is ERC20, IMintable, Ownable {
         lev = _lev;
     }
 
-    // Enter the bar. Pay some SUSHIs. Earn some shares.
-    // Locks Sushi and mints xSushi
-    function enter(uint256 _amount) public {
-        // Gets the amount of Sushi locked in the contract
-        uint256 totalSushi = lev.balanceOf(address(this));
-        // Gets the amount of xSushi in existence
-        uint256 totalShares = totalSupply();
-        // If no xSushi exists, mint it 1:1 to the amount put in
-        if (totalShares == 0 || totalSushi == 0) {
-            _mint(msg.sender, _amount);
-        } 
-        // Calculate and mint the amount of xSushi the Sushi is worth. The ratio will change overtime, as xSushi is burned/minted and Sushi deposited + gained from fees / withdrawn.
-        else {
-            uint256 what = _amount * totalShares / totalSushi;
-            _mint(msg.sender, what);
-        }
-        // Lock the Sushi in the contract
-        lev.transferFrom(msg.sender, address(this), _amount);
-    }
-
-    // Leave the bar. Claim back your SUSHIs.
-    // Unlocks the staked + gained Sushi and burns xSushi
-    function leave(address account, uint256 _share) public {
-        require(account == tx.origin, "SushiBar: UNAUTHORIZED");
-        // Gets the amount of xSushi in existence
-        uint256 totalShares = totalSupply();
-        // Calculates the amount of Sushi the xSushi is worth
-        uint256 what = _share * lev.balanceOf(address(this)) / totalShares;
-        _burn(account, _share);
-        require(lev.transfer(account, what), "SushiBar: LEV_TRANFER_FAILED");
-    }
-
     function mint(address receiver, uint256 amount) override external onlyOwner {
         _mint(receiver, amount);
     }

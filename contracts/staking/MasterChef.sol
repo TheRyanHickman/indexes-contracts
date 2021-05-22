@@ -114,7 +114,7 @@ contract MasterChef is Ownable {
     }
 
     // Add a new lp to the pool. Can only be called by the owner.
-    // XXX DO NOT add the same LP token more than once. Rewards will be messed up if you do.
+    // XXX DO NOT add any deflationary token 
     function add(uint256 _allocPoint, IERC20 _lpToken, bool _withUpdate) public onlyOwner {
         require(poolFromLpToken[address(_lpToken)] == 0 && _lpToken != lev, "MasterChef: POOL_ALREADY_EXISTS");
 
@@ -340,7 +340,7 @@ contract MasterChef is Ownable {
         return pendingLEV * poolBUSDBalance / totalPendingLEV;
     }
 
-    // owner of masterchef (governance) can recover ownership in order to change how LEV is minted
+    // owner of masterchef can recover ownership in order to change how LEV is minted
     function recoverLevOwnership() external onlyOwner {
         lev.transferOwnership(msg.sender);
     }

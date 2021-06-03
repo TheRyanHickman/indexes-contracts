@@ -1,3 +1,5 @@
+import { ethers, network } from "hardhat";
+
 import { Contract } from "@ethersproject/contracts";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import WBNBArtifact from "../artifacts/contracts/tokens/WBNB.sol/WBNB.json";
@@ -5,9 +7,10 @@ import { deployLEV } from "./deploy-tokens";
 import { deployPairWithPresets } from "./deploy-pair";
 import deployTeamSharing from "./deploy-team-sharing";
 import deployTimelockController from "./deploy-timelock-controller";
-import { ethers } from "hardhat";
 import { expandTo18Decimals } from "../test/utils";
 import fs from "fs";
+
+const env = network.name;
 
 const deploySushibar = async (rewardToken: string) => {
   const SushibarFactory = await ethers.getContractFactory("RewardBar");
@@ -37,7 +40,7 @@ const deployMasterChef = async (
 
 export const main = async () => {
   const [owner] = await ethers.getSigners();
-  const addrs = require("../addresses-mainnet.json");
+  const addrs = require(`../addresses-${env}.json`);
   const teamSharing = await deployTeamSharing();
   await teamSharing.deployed();
   console.log("Team sharing done");
@@ -59,7 +62,7 @@ export const main = async () => {
   );
   await masterChef.deployed();
 
-  console.log("masterchef done done");
+  console.log("masterchef done");
 
   // obtain wbnb for liquidity
   const WBNB = new Contract(addrs.tokens.WBNB, WBNBArtifact.abi, owner);
@@ -80,14 +83,18 @@ export const main = async () => {
     20
   );
 
+  console.log("lets transfer the  ownerships");
   const tx3 = await SLEV.transferOwnership(masterChef.address);
   tx3.wait();
+  console.log("SLEV done");
   const tx4 = await LEV.transferOwnership(masterChef.address);
   tx4.wait();
 
+  console.log("lets add staking pools to masterchef...");
   const tx = await masterChef.add(1000, LEVBNB, false);
   await tx.wait();
   await masterChef.add(1000, LEVBUSD, false);
+  console.log("just need to transfer ownership now");
 
   await masterChef.transferOwnership(timelock.address);
 
@@ -110,5 +117,5 @@ export const main = async () => {
 
 main().then((result) => {
   console.log(result);
-  fs.writeFileSync("addresses-mainnet.json", JSON.stringify(result, null, 2));
+  fs.writeFileSync(`addresses-${env}.json`, JSON.stringify(result, null, 2));
 });

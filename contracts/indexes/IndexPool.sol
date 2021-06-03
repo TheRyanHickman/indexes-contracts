@@ -13,8 +13,6 @@ import "contracts/tokens/WBNB.sol";
 
 import "./IndexController.sol";
 
-// import "hardhat/console.sol";
-
 /**
 This is a crypto index contract. It is create by the IndexController
 Tracks a group of cryptocurrencies prices. You can purchase this ERC20 and
@@ -98,6 +96,8 @@ contract IndexPool is ERC20, Ownable, ReentrancyGuard {
         uint totalSpent = 0;
         for (uint256 i = 0; i < _underlyingTokens.length; i++) {
             uint purchaseAmount = (amountOut * _tokenWeights[i]) / WEIGHT_FACTOR;
+            if (purchaseAmount == 0)
+                continue;
             if (_underlyingTokens[i] == address(_WBNB)) {
                 totalTokensBought += purchaseAmount;
                 totalSpent += purchaseAmount;
@@ -130,6 +130,8 @@ contract IndexPool is ERC20, Ownable, ReentrancyGuard {
 
         for (uint256 i = 0; i < _underlyingTokens.length; i++) {
             uint256 sellAmount = (amount * _tokenWeights[i]) / WEIGHT_FACTOR;
+            if (sellAmount == 0)
+                continue;
             if (_underlyingTokens[i] == address(_WBNB)) {
                 totalTokensSold += sellAmount;
                 amountToPayUser += sellAmount;

@@ -1,11 +1,14 @@
-import { ethers } from "hardhat";
+import { ethers, network } from "hardhat";
+
 import fs from "fs";
+
+const env = network.name;
 
 export const deployPancakeUtilities = async () => {
   const pancakeUtilities = await ethers.getContractFactory(
     "PancakeswapUtilities"
   );
-  const addrs = require("../addresses-mainnet.json");
+  const addrs = require(`../addresses-${env}.json`);
   const utilities = await pancakeUtilities.deploy();
   return {
     ...addrs,
@@ -15,5 +18,5 @@ export const deployPancakeUtilities = async () => {
 
 deployPancakeUtilities().then((result) => {
   console.log(result);
-  fs.writeFileSync("addresses-mainnet.json", JSON.stringify(result, null, 2));
+  fs.writeFileSync(`addresses-${env}.json`, JSON.stringify(result, null, 2));
 });

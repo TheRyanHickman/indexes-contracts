@@ -6,12 +6,15 @@ import { HardhatUserConfig } from "hardhat/types";
 // You need to export an object to set up your config
 // Go to https://hardhat.org/config/ to learn more
 
-const accounts = {
+let accounts = {
   mnemonic: process.env.MNEMONIC,
   initialIndex: 0,
   count: 20,
   accountsBalance: "990000000000000000000",
 };
+
+if (!process.env.MNEMONIC)
+	accounts = undefined;
 
 /**
  * @type import('hardhat/config').HardhatUserConfig
@@ -36,12 +39,10 @@ const config: HardhatUserConfig = {
       chainId: 56,
       accounts: accounts,
     },
-    hardhat: {
-      mining: {
-        auto: true,
-        interval: 3000,
-      },
-      accounts: accounts,
+    polygon: {
+      url: "https://rpc-mainnet.matic.network",
+      chainId: 137,
+      accounts,
     },
   },
   gasReporter: {

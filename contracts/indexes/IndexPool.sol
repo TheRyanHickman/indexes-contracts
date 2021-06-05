@@ -254,8 +254,8 @@ contract IndexPool is ERC20, Ownable, ReentrancyGuard {
                     continue;
                 }
                 PancakeswapUtilities.buyToken(
-                    _underlyingTokens[i],
                     address(_WBNB),
+                    _underlyingTokens[i],
                     address(this),
                     buyAmount,
                     _pancakeRouter
@@ -266,7 +266,7 @@ contract IndexPool is ERC20, Ownable, ReentrancyGuard {
         _tokenWeights = weights;
         int quoteAfter = int(getIndexQuote(1e18));
         require(
-            quoteBefore - quoteAfter > 0 && quoteBefore - quoteAfter < quoteBefore / 50,
+            quoteBefore - quoteAfter < quoteBefore / 50,
             "IndexPool: PRICE_LOSS_TOO_HIGH"
         );
     }

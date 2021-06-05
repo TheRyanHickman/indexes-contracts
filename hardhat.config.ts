@@ -30,6 +30,16 @@ const config: HardhatUserConfig = {
     },
   },
   networks: {
+    hardhat: {
+      accounts: process.env.MNEMONIC && accounts,
+      forking: {
+	      url: "https://bsc-dataseed.binance.org"
+      },
+      mining: {
+	      auto: false,
+	      interval: 3000
+      }
+    },
     localhost: {
       url: "http://127.0.0.1:8545",
       accounts: accounts,

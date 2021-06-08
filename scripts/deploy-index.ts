@@ -47,10 +47,24 @@ export const indexesDesc = {
       "0x8ff795a6f4d97e7887c79bea79aba5cc76444adf",
     ],
   },
+  /*
+  12.5% WBNB 
+12.5% XVS 
+12.5% SXP 
+12.5% CAKE 
+10% BAKE 
+10% AUTO 
+10% BIFI
+10% 1inch
+2.5% ACS
+2.5% BSCPAD 
+2.5% LEV
+2.5% BUNNY
+  */
   DBI: {
     name: "DefiBSCIndex",
     symbol: "DBI",
-    weights: [30, 25, 25, 25, 20, 20, 20, 10, 5, 5],
+    weights: [25, 25, 25, 25, 20, 20, 20, 20, 5, 5, 5, 5],
     underlyingTokens: [
       "0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c",
       "0xcf6bb5389c92bdda8a3747ddb454cb7a64626c63",
@@ -59,8 +73,10 @@ export const indexesDesc = {
       "0xE02dF9e3e622DeBdD69fb838bB799E3F168902c5",
       "0xa184088a740c695e156f91f5cc086a06bb78b827",
       "0xCa3F508B8e4Dd382eE878A314789373D80A5190A",
+      "0x111111111117dc0aa78b770fa6a738034120c302",
+      "0x4197c6ef3879a08cd51e5560da5064b773aa1d29",
+      "0x5a3010d4d8d3b5fb49f8b6e57fb9e48063f16700",
       "0x304c62b5B030176F8d328d3A01FEaB632FC929BA",
-      "0xd1102332a213e21faf78b69c03572031f3552c33",
       "0xc9849e6fdb743d08faee3e34dd2d1bc69ea11a51",
     ],
   },
@@ -110,20 +126,22 @@ export const deployIndex = async (
     ControllerArtifact.abi,
     owner
   );
-  const weights = await computeTargetWeights(
+  let weights = await computeTargetWeights(
     activeIndex.underlyingTokens,
     activeIndex.weights,
     router,
     WBNB,
     addrs.tokens.BUSD
   );
+  weights = weights.map((w) => (w > 6000 ? 6000 : w));
   console.log(weights);
+
   const tx = await controller.createIndexPool(
     activeIndex.name,
     activeIndex.symbol,
     activeIndex.underlyingTokens,
-    // weights,
-    activeIndex.weights,
+    weights,
+    // activeIndex.weights,
     [0],
     {
       gasLimit: 5000000,
@@ -135,15 +153,15 @@ export const deployIndex = async (
 
 const main = async () => {
   return;
-  const { controller } = await deployIndexController(
-    addrs.tokens.LEV,
-    addrs.teamSharing
-  );
-  // const controller = new ethers.Contract(
-  //   addrs.controller,
-  //   ControllerArtifact.abi,
-  //   (await ethers.getSigners())[0]
+  // const { controller } = await deployIndexController(
+  //   addrs.tokens.LEV,
+  //   addrs.teamSharing
   // );
+  const controller = new ethers.Contract(
+    addrs.controller,
+    ControllerArtifact.abi,
+    (await ethers.getSigners())[0]
+  );
   if (false && network !== "mainnet") {
     return {
       TEST: await deployIndex(addrs, controller.address, "TEST"),
@@ -152,7 +170,7 @@ const main = async () => {
   }
   return {
     ...addrs,
-    LI: await deployIndex(addrs, controller.address, "LI"),
+    //LI: await deployIndex(addrs, controller.address, "LI"),
     DBI: await deployIndex(addrs, controller.address, "DBI"),
     controller: controller.address,
   };

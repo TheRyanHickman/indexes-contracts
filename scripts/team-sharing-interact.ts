@@ -52,6 +52,12 @@ const proposeShareholders = async () => {
       canVote: true,
     },
     {
+      // gwendoudou
+      wallet: "0xbE261843793f96141E1a482f8F88D3BFA12dDb75",
+      shares: 200,
+      canVote: false,
+    },
+    {
       // Hellmouth
       wallet: "0xf57247ab386242f969d1Ab528b7fFd6897D55d38",
       shares: 250,

@@ -1,5 +1,6 @@
 import { ethers, network } from "hardhat";
 
+import { Interface } from "@ethersproject/abi";
 import { from18Decimals } from "../test/utils";
 
 const env = network.name;
@@ -54,7 +55,7 @@ const proposeShareholders = async () => {
     {
       // gwendoudou
       wallet: "0xbE261843793f96141E1a482f8F88D3BFA12dDb75",
-      shares: 200,
+      shares: 300,
       canVote: false,
     },
     {
@@ -80,13 +81,13 @@ const proposeShareholders = async () => {
   const tx3 = await teamSharing.applyProposal(proposalId);
   console.log("proposal applied...", tx3.hash);
   await tx3.wait();
-  console.log("\nbalances before:");
-  await showBalances(shareholders);
-  const tx2 = await teamSharing.distributeToken(addrs.tokens.LEV);
-  console.log("dispatch...", tx2.hash);
-  await tx2.wait();
-  console.log("\nbalances now");
-  await showBalances(shareholders);
+  // console.log("\nbalances before:");
+  // await showBalances(shareholders);
+  // const tx2 = await teamSharing.distributeToken(addrs.tokens.LEV);
+  // console.log("dispatch...", tx2.hash);
+  // await tx2.wait();
+  // console.log("\nbalances now");
+  // await showBalances(shareholders);
 };
 
 const showBalances = async (
@@ -110,4 +111,14 @@ const showBalances = async (
   }
 };
 
-proposeShareholders();
+const showHexForDistribute = async () => {
+  const abi = ["function distributeToken(address)"];
+  const iface = new Interface(abi);
+
+  const foo = iface.encodeFunctionData("distributeToken", [addrs.tokens.WBNB]);
+  console.log(foo);
+
+  const levFactory = await ethers.getContractFactory("ERC20");
+  const lev = levFactory.attach(addrs.LI);
+  console.log((await lev.balanceOf(addrs.masterChef)).toString());
+};

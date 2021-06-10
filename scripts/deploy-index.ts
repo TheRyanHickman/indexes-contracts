@@ -1,6 +1,7 @@
 import { getPancakeFactory, getPancakeRouter } from "../test/pancakeswap";
 import hre, { ethers } from "hardhat";
 
+import { Contract } from "@ethersproject/contracts";
 import ControllerArtifact from "../artifacts/contracts/indexes/IndexController.sol/IndexController.json";
 import { computeTargetWeights } from "./calculate-weights";
 import fs from "fs";
@@ -80,6 +81,17 @@ export const indexesDesc = {
       "0xc9849e6fdb743d08faee3e34dd2d1bc69ea11a51",
     ],
   },
+  SI: {
+    name: "Stable Index",
+    symbol: "SI",
+    weights: [25, 25, 25, 25],
+    underlyingTokens: [
+      "0xe9e7cea3dedca5984780bafc599bd69add087d56",
+      "0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d",
+      "0x4bd17003473389a42daf6a0a729f6fdb328bbbd7",
+      "0x55d398326f99059ff775485246999027b3197955",
+    ],
+  },
   TEST: {
     name: "Test Index",
     symbol: "TEST",
@@ -102,7 +114,7 @@ export const indexesDesc = {
 export const deployIndex = async (
   addrs: any,
   indexController: string,
-  indexKey: "LI" | "DBI" | "TEST"
+  indexKey: "LI" | "DBI" | "TEST" | "SI"
 ) => {
   console.log("Note: make sure to update controller if index pool was updated");
   const [owner] = await ethers.getSigners();
@@ -134,14 +146,13 @@ export const deployIndex = async (
     addrs.tokens.BUSD
   );
   weights = weights.map((w) => (w > 6000 ? 6000 : w));
-  console.log(weights);
+  if (indexKey === "SI") weights = [250, 250, 250, 250];
 
   const tx = await controller.createIndexPool(
     activeIndex.name,
     activeIndex.symbol,
     activeIndex.underlyingTokens,
     weights,
-    // activeIndex.weights,
     [0],
     {
       gasLimit: 5000000,
@@ -151,17 +162,21 @@ export const deployIndex = async (
   return receipt.events[3].args.index;
 };
 
-const main = async () => {
-  return;
-  // const { controller } = await deployIndexController(
-  //   addrs.tokens.LEV,
-  //   addrs.teamSharing
-  // );
-  const controller = new ethers.Contract(
-    addrs.controller,
-    ControllerArtifact.abi,
-    (await ethers.getSigners())[0]
-  );
+const main = async (deployController: boolean) => {
+  let controller: Contract;
+
+  if (deployController) {
+    controller = (
+      await deployIndexController(addrs.tokens.LEV, addrs.teamSharing)
+    ).controller;
+  } else {
+    controller = new ethers.Contract(
+      addrs.controller,
+      ControllerArtifact.abi,
+      (await ethers.getSigners())[0]
+    );
+  }
+
   if (false && network !== "mainnet") {
     return {
       TEST: await deployIndex(addrs, controller.address, "TEST"),
@@ -170,13 +185,14 @@ const main = async () => {
   }
   return {
     ...addrs,
-    //LI: await deployIndex(addrs, controller.address, "LI"),
-    DBI: await deployIndex(addrs, controller.address, "DBI"),
+    // LI: await deployIndex(addrs, controller.address, "LI"),
+    // DBI: await deployIndex(addrs, controller.address, "DBI"),
+    SI: await deployIndex(addrs, controller.address, "SI"),
     controller: controller.address,
   };
 };
 
-main().then((result) => {
+main(false).then((result) => {
   if (!result) return;
   console.log(result);
   fs.writeFileSync(

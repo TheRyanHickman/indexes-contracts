@@ -45,9 +45,10 @@ const getChangeTimelockCalldata = (newDelay: number) => {
 const execute = async () => {
   const timelock = await getTimelock();
   const tx = await timelock.execute(
-    addrs.masterChef,
+    //    addrs.masterChef,
+    addrs.timelock,
     0,
-    getCallData(),
+    getChangeTimelockCalldata(30),
     "0x0000000000000000000000000000000000000000000000000000000000000000",
     "0x0000000000000000000000000000000000000000000000000000000000000000"
   );

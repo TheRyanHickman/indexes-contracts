@@ -1,13 +1,13 @@
 ### Contracts
 
-0x9d687619DE58580270a992332252479aF5dbbe10 Multisig dev team contract <https://gnosis-safe.binance.org/#/safes/0x9d687619DE58580270a992332252479aF5dbbe10>
-0x16149999C85c3E3f7d1B9402a4c64d125877d89D Timelock contract (owned by multisig)
-0xA3fDF7F376F4BFD38D7C4A5cf8AAb4dE68792fd4 staking contract (owned by timelock)
-0x304c62b5B030176F8d328d3A01FEaB632FC929BA LEV token (owned by staking contract)
+`0x9d687619DE58580270a992332252479aF5dbbe10` Multisig dev team contract
+`0x16149999C85c3E3f7d1B9402a4c64d125877d89D` Timelock contract (owned by multisig)
+`0xA3fDF7F376F4BFD38D7C4A5cf8AAb4dE68792fd4` staking contract (owned by timelock)
+`0x304c62b5B030176F8d328d3A01FEaB632FC929BA` LEV token (owned by staking contract)
 
-0x08Ba8CCc71D92055e4b370283AE07F773211Cc29 LI index pool
-0xB04c92A631c8c350Cf81b5b54A0FE8dfbCC68677 DBI index pool
-0xA9102b07f1F577D7c58E481a8CbdB2630637Ea48 SI index pool
+`0x08Ba8CCc71D92055e4b370283AE07F773211Cc29` LI index pool
+`0xB04c92A631c8c350Cf81b5b54A0FE8dfbCC68677` DBI index pool
+`0xA9102b07f1F577D7c58E481a8CbdB2630637Ea48` SI index pool
 
 ### Audit feedback
 

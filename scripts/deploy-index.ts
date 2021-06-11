@@ -84,11 +84,10 @@ export const indexesDesc = {
   SI: {
     name: "Stable Index",
     symbol: "SI",
-    weights: [25, 25, 25, 25],
+    weights: [1, 1, 1],
     underlyingTokens: [
       "0xe9e7cea3dedca5984780bafc599bd69add087d56",
       "0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d",
-      "0x4bd17003473389a42daf6a0a729f6fdb328bbbd7",
       "0x55d398326f99059ff775485246999027b3197955",
     ],
   },
@@ -146,7 +145,7 @@ export const deployIndex = async (
     addrs.tokens.BUSD
   );
   weights = weights.map((w) => (w > 6000 ? 6000 : w));
-  if (indexKey === "SI") weights = [250, 250, 250, 250];
+  if (indexKey === "SI") weights = [334, 333, 333];
 
   const tx = await controller.createIndexPool(
     activeIndex.name,

@@ -9,7 +9,7 @@ const main = async () => {
       PancakeswapUtilities: addresses.pancakeUtilities,
     },
   });
-  const index = await indexFactory.attach(addresses.DBI);
+  const index = await indexFactory.attach(addresses.SI);
   console.log(await index.getComposition());
 };
 
